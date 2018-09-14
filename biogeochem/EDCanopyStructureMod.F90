@@ -1201,7 +1201,7 @@ contains
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
 
           ! Number of actual vegetation layers in this cohort's crown
-          currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
+          currentCohort%nv =  min(ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed),nlevleaf)
 
           currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
@@ -1388,10 +1388,14 @@ contains
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
                             (dinc_ed*dble(currentCohort%nv-1.0_r8))
                       if(remainder > dinc_ed )then
-                         write(fates_log(), *)'ED: issue with remainder', &
+                         write(fates_log(), *)'FATES: issue with remainder, because lai+sai * dinc > nlevleaf', &
                                currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
                                currentCohort%NV,remainder
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                         ! rather than terminate run, clip the canopy's effective lai to fit within the array
+                         !call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                         remainder = dinc_ed
                       endif
                    else
                       remainder = dinc_ed

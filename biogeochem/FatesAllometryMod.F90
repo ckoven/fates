@@ -696,11 +696,19 @@ contains
 
     if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
        write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
-       write(fates_log(),*) 'lai: ',treelai
-       write(fates_log(),*) 'sai: ',tree_sai
-       write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       write(fates_log(),*) 'lai, sai: ',treelai, tree_sai
+       ! change failure mode on this to warn and clip the lai rather than crash the run.
+       
+       ! write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
+       ! write(fates_log(),*) 'target_bleaf, c_area/nplant: ',target_bleaf, c_area/nplant
+       ! write(fates_log(),*) 'cl, canopy_lai: ',cl, canopy_lai
+       ! write(fates_log(),*) 'pft, dbh: ',pft, dbh
+       ! write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       ! write(fates_log(),*) 'allom_d2bl1,allom_d2bl2: ', EDPftvarcon_inst%allom_d2bl1(pft),EDPftvarcon_inst%allom_d2bl2(pft)
+       ! write(fates_log(),*) 'allom_d2ca_coefficient_min,allom_d2ca_coefficient_max: ', EDPftvarcon_inst%allom_d2ca_coefficient_min(pft),EDPftvarcon_inst%allom_d2ca_coefficient_max(pft)
+       ! write(fates_log(),*) 'slatop,slamax: ', EDPftvarcon_inst%slatop(pft),EDPftvarcon_inst%slamax(pft)
+       ! write(fates_log(),*) 'vcmax25top: ', EDPftvarcon_inst%slatop(pft),EDPftvarcon_inst%vcmax25top(pft)
+       ! call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
 
