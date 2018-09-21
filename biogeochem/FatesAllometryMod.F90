@@ -663,6 +663,11 @@ contains
        tree_lai = 0.0_r8
     endif ! (leafc_per_unitarea > 0.0_r8)
 
+    ! check to see if the tree has maxed out the lai array, and if so, truncate it.
+    if ( tree_lai * (1._r8 + EDPftvarcon_inst%allom_sai_scaler(pft)) .gt. nlevleaf*dinc_ed) then
+       tree_lai = nlevleaf*dinc_ed / (1._r8 + EDPftvarcon_inst%allom_sai_scaler(pft))
+    endif
+    
     return
   end function tree_lai
 
