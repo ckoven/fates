@@ -163,7 +163,7 @@ module EDTypesMod
   character*4 yearchar                    
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter :: homogenize_seed_pfts  = .false.
+  logical, parameter :: homogenize_seed_pfts  = .true.
 
   
   ! Leaf age class initialization schemes
