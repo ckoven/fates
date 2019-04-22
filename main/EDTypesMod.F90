@@ -16,7 +16,7 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
+  integer, parameter :: maxCohortsPerPatch = 900  ! maximum number of cohorts per patch
   
   integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
@@ -25,7 +25,7 @@ module EDTypesMod
                                                   ! are not the top canopy layer)
 
   integer, parameter :: nlevleaf = 30             ! number of leaf layers in canopy layer
-  integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
+  integer, parameter :: maxpft = 30               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
