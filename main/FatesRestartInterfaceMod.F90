@@ -96,6 +96,8 @@ module FatesRestartInterfaceMod
   integer, private :: ir_size_class_lasttimestep_co
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
+  integer, private :: ir_treelai_co
+  integer, private :: ir_c_area_co
   integer, private :: ir_laimemory_co
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
@@ -700,6 +702,14 @@ contains
     call this%set_restart_var(vname='fates_height', vtype=cohort_r8, &
          long_name='ed cohort - plant height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
+
+    call this%set_restart_var(vname='fates_treelai', vtype=cohort_r8, &
+         long_name='ed cohort - treelai', units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+
+    call this%set_restart_var(vname='fates_c_area', vtype=cohort_r8, &
+         long_name='ed cohort - crown area', units='m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
 
     call this%set_restart_var(vname='fates_laimemory', vtype=cohort_r8, &
          long_name='ed cohort - target leaf biomass set from prev year', &
@@ -1454,6 +1464,8 @@ contains
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
+           rio_treelai_co              => this%rvars(ir_treelai_co)%r81d, &
+           rio_c_area_co               => this%rvars(ir_c_area_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
@@ -1636,6 +1648,8 @@ contains
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
+                rio_treelai_co(io_idx_co)      = ccohort%treelai
+                rio_c_area_co(io_idx_co)       = ccohort%c_area
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
 
                 rio_nplant_co(io_idx_co)       = ccohort%n
@@ -2161,6 +2175,8 @@ contains
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
+          rio_treelai_co              => this%rvars(ir_treelai_co)%r81d, &
+          rio_c_area_co               => this%rvars(ir_c_area_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
@@ -2306,6 +2322,8 @@ contains
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
+                ccohort%treelai      = rio_treelai_co(io_idx_co)
+                ccohort%c_area       = rio_c_area_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
