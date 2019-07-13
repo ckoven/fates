@@ -1638,6 +1638,8 @@ contains
                       call fuse_cohorts(csite,tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
+                      ! reset patch fusion tolerance
+                      profiletol = ED_val_patch_fusion_tol
                    else
                      ! write(fates_log(),*) 'patches not fused'
                    endif
