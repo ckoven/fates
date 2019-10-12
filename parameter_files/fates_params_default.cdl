@@ -11,6 +11,7 @@ dimensions:
 	fates_prt_organs = 6 ;
 	fates_string_length = 60 ;
 	fates_variants = 2 ;
+	fates_landuse_types = 1 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -522,28 +523,28 @@ variables:
 	double fates_init_litter ;
 		fates_init_litter:units = "NA" ;
 		fates_init_litter:long_name = "Initialization value for litter pool in cold-start (NOT USED)" ;
-	double fates_logging_coll_under_frac ;
+	double fates_logging_coll_under_frac(fates_landuse_types) ;
 		fates_logging_coll_under_frac:units = "fraction" ;
 		fates_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
-	double fates_logging_collateral_frac ;
+	double fates_logging_collateral_frac(fates_landuse_types) ;
 		fates_logging_collateral_frac:units = "fraction" ;
 		fates_logging_collateral_frac:long_name = "Fraction of large stems in upperstory that die from logging collateral damage" ;
-	double fates_logging_dbhmax_infra ;
+	double fates_logging_dbhmax_infra(fates_landuse_types) ;
 		fates_logging_dbhmax_infra:units = "cm" ;
 		fates_logging_dbhmax_infra:long_name = "Tree diameter, above which infrastructure from logging does not impact damage or mortality." ;
-	double fates_logging_dbhmin ;
+	double fates_logging_dbhmin(fates_landuse_types) ;
 		fates_logging_dbhmin:units = "cm" ;
 		fates_logging_dbhmin:long_name = "Minimum dbh at which logging is applied" ;
-	double fates_logging_direct_frac ;
+	double fates_logging_direct_frac(fates_landuse_types) ;
 		fates_logging_direct_frac:units = "fraction" ;
 		fates_logging_direct_frac:long_name = "Fraction of stems logged directly per event" ;
-	double fates_logging_event_code ;
-		fates_logging_event_code:units = "unitless" ;
-		fates_logging_event_code:long_name = "Integer code that options how logging events are structured" ;
-	double fates_logging_export_frac ;
+	double fates_logging_frequency(fates_landuse_types) ;
+		fates_logging_frequency:units = "unitless" ;
+		fates_logging_frequency:long_name = "Frequency of logging: negative means per-this-many-days, positive means annual-on-this-day" ;
+	double fates_logging_export_frac(fates_landuse_types) ;
 		fates_logging_export_frac:units = "fraction" ;
 		fates_logging_export_frac:long_name = "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD" ;
-	double fates_logging_mechanical_frac ;
+	double fates_logging_mechanical_frac(fates_landuse_types) ;
 		fates_logging_mechanical_frac:units = "fraction" ;
 		fates_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
 	double fates_mort_disturb_frac ;
@@ -1146,7 +1147,7 @@ data:
 
  fates_logging_direct_frac = 0.15 ;
 
- fates_logging_event_code = -30 ;
+ fates_logging_frequency = -30 ;
 
  fates_logging_export_frac = 0.8 ;
 

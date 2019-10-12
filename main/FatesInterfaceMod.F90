@@ -461,7 +461,14 @@ module FatesInterfaceMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
+
+      ! ---------------------------------------------------------------------------------
+      ! Logging and land use   -- these have dimension of nlanduse
+
+      real(r8),allocatable :: logging_rate(:)      ! total rate of logging
+      integer, allocatable :: logging_units(:)     ! with what units is the logging specified (area, mass)
+
+            
    end type bc_in_type
 
 
@@ -785,6 +792,11 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
+      if (hlm_use_logging .eq. itrue) then
+         allocate(bc_in%logging_rate(xxx))
+         allocate(bc_in%logging_units(xxx))
+      endif
+
       return
    end subroutine allocate_bcin
    
@@ -920,6 +932,10 @@ contains
          this%bc_in(s)%hksat_sisl(:) = 0.0_r8
       end if
 
+      if (hlm_use_logging .eq. itrue) then
+         this%bc_in(s)%logging_rate(:) = 0.0_r8
+         this%bc_in(s)%loggin_units(:) = 0
+      endif
 
       ! Output boundaries
       this%bc_out(s)%active_suction_sl(:) = .false.

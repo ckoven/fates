@@ -106,30 +106,36 @@ module EDParamsMod
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
-   real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
+   ! Minimum dbh at which logging is applied (cm)
+   real(r8),protected,allocatable,public :: logging_dbhmin(:)              
    character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_logging_dbhmin"
 
-   real(r8),protected,public :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
+   ! Ratio of collateral mortality to direct logging mortality
+   real(r8),protected,allocatable,public :: logging_collateral_frac(:)     
    character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_logging_collateral_frac"
 
-   real(r8),protected,public :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
-                                                 ! is generated
+   ! Fraction of understory plants that die when logging disturbance is generated
+   real(r8),protected,allocatable,public :: logging_coll_under_frac(:) 
    character(len=param_string_length),parameter,public :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
-   
-   real(r8),protected,public :: logging_direct_frac         ! Fraction of stems logged per event
+
+   ! Fraction of stems logged per event
+   real(r8),protected,allocatable,public :: logging_direct_frac(:)         
    character(len=param_string_length),parameter,public :: logging_name_direct_frac = "fates_logging_direct_frac"
 
-   real(r8),protected,public :: logging_mechanical_frac         ! Fraction of stems logged per event
+   ! Fraction of stems logged per event
+   real(r8),protected,allocatable,public :: logging_mechanical_frac(:)         
    character(len=param_string_length),parameter,public :: logging_name_mechanical_frac = "fates_logging_mechanical_frac"
 
-   real(r8),protected,public :: logging_event_code          ! Code that options how logging events are structured 
+   ! Code that options how logging events are structured 
+   real(r8),protected,allocatable,public :: logging_event_code(:)          
    character(len=param_string_length),parameter,public :: logging_name_event_code = "fates_logging_event_code"
-   
-   real(r8),protected,public :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
+
+   ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
+   real(r8),protected,allocatable,public :: logging_dbhmax_infra(:)        
    character(len=param_string_length),parameter,public :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
-   
-   real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
-                                                    ! leftovers will be left onsite as large CWD
+
+   ! "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD
+   real(r8),protected,allocatable,public :: logging_export_frac(:)        
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"   
 
    public :: FatesParamsInit
@@ -179,13 +185,6 @@ contains
     
     bgc_soil_salinity                     = nan
 
-    logging_dbhmin                        = nan
-    logging_collateral_frac               = nan
-    logging_direct_frac                   = nan
-    logging_mechanical_frac               = nan
-    logging_event_code                    = nan
-    logging_dbhmax_infra                  = nan
-    logging_export_frac                   = nan
     q10_mr                                = nan
     q10_froz                              = nan
 
@@ -200,6 +199,7 @@ contains
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_name_landuse_types
 
     implicit none
 
@@ -209,6 +209,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
+    character(len=param_string_length), parameter :: dim_names_landuse(1) = (/dimension_name_landuse_types/)
 
     call FatesParamsInit()
 
@@ -293,29 +294,29 @@ contains
     call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar) 
 
-    call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_mechanical_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_mechanical_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
-    call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
     call fates_params%RegisterParameter(name=fates_name_q10_mr, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -426,30 +427,6 @@ contains
     call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
-    call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
-          data=logging_dbhmin)
-    
-    call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
-          data=logging_collateral_frac)
-    
-    call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
-          data=logging_coll_under_frac)
-
-    call fates_params%RetreiveParameter(name=logging_name_direct_frac, &
-          data=logging_direct_frac)
-
-    call fates_params%RetreiveParameter(name=logging_name_mechanical_frac, &
-          data=logging_mechanical_frac)
-    
-    call fates_params%RetreiveParameter(name=logging_name_event_code, &
-          data=logging_event_code)
-
-    call fates_params%RetreiveParameter(name=logging_name_dbhmax_infra, &
-          data=logging_dbhmax_infra)
-
-    call fates_params%RetreiveParameter(name=logging_name_export_frac, &
-          data=logging_export_frac)
-
     call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
     
@@ -457,6 +434,31 @@ contains
           data=q10_froz)
 
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
+
+    call fates_params%RetreiveParameterAllocate(name=logging_name_dbhmin, &
+          data=logging_dbhmin)
+    
+    call fates_params%RetreiveParameterAllocate(name=logging_name_collateral_frac, &
+          data=logging_collateral_frac)
+    
+    call fates_params%RetreiveParameterAllocate(name=logging_name_coll_under_frac, &
+          data=logging_coll_under_frac)
+
+    call fates_params%RetreiveParameterAllocate(name=logging_name_direct_frac, &
+          data=logging_direct_frac)
+
+    call fates_params%RetreiveParameterAllocate(name=logging_name_mechanical_frac, &
+          data=logging_mechanical_frac)
+    
+    call fates_params%RetreiveParameterAllocate(name=logging_name_event_code, &
+          data=logging_event_code)
+
+    call fates_params%RetreiveParameterAllocate(name=logging_name_dbhmax_infra, &
+          data=logging_dbhmax_infra)
+
+    call fates_params%RetreiveParameterAllocate(name=logging_name_export_frac, &
+          data=logging_export_frac)
+
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
 

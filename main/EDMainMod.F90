@@ -141,10 +141,6 @@ contains
        call currentSite%flux_diags(el)%ZeroFluxDiags()
     end do
 
-    ! Call a routine that simply identifies if logging should occur
-    ! This is limited to a global event until more structured event handling is enabled
-    call IsItLoggingTime(hlm_masterproc,currentSite)
-
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
     !**************************************************************************

@@ -56,12 +56,10 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
    use FatesAllometryMod , only : i_biomass_rootprof_context
+   use FatesInterfaceMod , only : bc_in_type
 
    implicit none
    private
-
-   logical, protected :: logging_time   ! If true, logging should be 
-                                        ! performed during the current time-step
 
 
    ! harvest litter localization specifies how much of the litter from a falling
@@ -79,99 +77,21 @@ module EDLoggingMortalityMod
    
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
-   public :: logging_time
-   public :: IsItLoggingTime
 
 contains
 
-   subroutine IsItLoggingTime(is_master,currentSite)
+      ! these lines were in isitloggingtime, which I've cut out completely.
+      ! ! Initialize some site level diagnostics that are calculated for each event
+      ! currentSite%resources_management%delta_litter_stock  = 0.0_r8
+      ! currentSite%resources_management%delta_biomass_stock = 0.0_r8
+      ! currentSite%resources_management%delta_individual    = 0.0_r8
 
-      ! -------------------------------------------------------------------------------
-      ! This subroutine determines if the current dynamics step should enact
-      ! the logging module.
-      ! This is done by comparing the current model time to the logging event
-      ! ids.  If there is a match, it is logging time.
-      ! -------------------------------------------------------------------------------
-     
-      integer, intent(in) :: is_master
-      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
 
-      integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
-      integer :: log_date  ! Day of month for logging exctracted from event code
-      integer :: log_month ! Month of year for logging extraced from event code
-      integer :: log_year  ! Year for logging extracted from event code
-      character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4.4)'
-
-      logging_time = .false.
-      icode = int(logging_event_code)
-
-      if(hlm_use_logging.eq.ifalse) return
-
-      if(icode .eq. 1) then
-         ! Logging is turned off
-         logging_time = .false.
-
-      else if(icode .eq. 2) then
-         ! Logging event on the first step
-         if( hlm_model_day.eq.1 ) then
-            logging_time = .true.
-         end if
-
-      else if(icode .eq. 3) then
-         ! Logging event every day
-         logging_time = .true.
-
-      else if(icode .eq. 4) then
-         ! logging event once a month
-         if(hlm_current_day.eq.1  ) then
-            logging_time = .true.
-         end if
-
-      else if(icode < 0 .and. icode > -366) then
-         ! Logging event every year on specific day of year
-         if(hlm_day_of_year .eq. abs(icode)  ) then
-            logging_time = .true.
-         end if
-
-      else if(icode > 10000 ) then
-         ! Specific Event: YYYYMMDD
-         log_date  = icode - int(100* floor(real(icode)/100))
-         log_year  = floor(real(icode)/10000)
-         log_month = floor(real(icode)/100) - log_year*100
-
-         if( hlm_current_day.eq.log_date    .and. &
-               hlm_current_month.eq.log_month .and. &
-               hlm_current_year.eq.log_year ) then
-            logging_time = .true.
-         end if
-      else 
-         ! Bad logging event flag
-         write(fates_log(),*) 'An invalid logging code was specified in fates_params'
-         write(fates_log(),*) 'Check EDLoggingMortalityMod.F90:IsItLoggingTime()'
-         write(fates_log(),*) 'for a breakdown of the valid codes and change'
-         write(fates_log(),*) 'fates_logging_event_code in the file accordingly.'
-         write(fates_log(),*) 'exiting'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
-
-      ! Initialize some site level diagnostics that are calculated for each event
-      currentSite%resources_management%delta_litter_stock  = 0.0_r8
-      currentSite%resources_management%delta_biomass_stock = 0.0_r8
-      currentSite%resources_management%delta_individual    = 0.0_r8
-
-      if(logging_time .and. (is_master.eq.itrue) ) then
-         write(fates_log(),fmt) 'Logging Event Enacted on date: ', &
-               hlm_current_month,'-',hlm_current_day,'-',hlm_current_year
-      end if
-      return
-   end subroutine IsItLoggingTime
-
-   ! ======================================================================================
-
-   subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
+   subroutine LoggingMortality_frac( bc_in, pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad )
 
-      ! Arguments
+     ! Arguments
+      type(bc_in_type) , intent(in) :: bc_in
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
@@ -182,55 +102,59 @@ contains
                                                 ! but suffer from forest degradation (i.e. they
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
+      ! Local variables
+      logical :: logging_time
+      integer :: logging_type_i                 ! iterator for possible different types of logging
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
- 
-      if (logging_time) then 
-         if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
+      
+      lmort_direct    = 0.0_r8
+      lmort_collateral = 0.0_r8
+      lmort_infra      = 0.0_r8
+      l_degrad         = 0.0_r8
 
-            ! Pass logging rates to cohort level 
+      do logging_type_i = 1, nlogging_types
 
-            if (dbh >= logging_dbhmin ) then
-               lmort_direct = logging_direct_frac * adjustment
-               l_degrad = 0._r8
-            else
-               lmort_direct = 0.0_r8 
-               l_degrad = logging_direct_frac * adjustment
+         ! first need to parse out the bc_in and logging parameters to set whether logging_time is true
+         if (bc_in%logging_rate(logging_type_i) .gt. fates_tiny) then
+            ! parse out the fates_frequency_code
+
+            ! if not doing annual logging, then use adjustment variable to de-annualize the logging rates
+         endif
+
+         if (logging_time .and. bc_in%logging_units(i) .eq. logging_byarea) then 
+            if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
+
+               ! Pass logging rates to cohort level 
+
+               if (dbh >= logging_dbhmin ) then
+                  lmort_direct = lmort_direct + logging_direct_frac * adjustment
+               else
+                  l_degrad = l_degrad + logging_direct_frac * adjustment
+               end if
+
+               if (dbh >= logging_dbhmax_infra) then
+                  l_degrad         = l_degrad + logging_mechanical_frac * adjustment
+               else
+                  lmort_infra      = lmort_infra + logging_mechanical_frac * adjustment
+               end if
+               !damage rates for size class < & > threshold_size need to be specified seperately
+
+               ! Collateral damage to smaller plants below the direct logging size threshold
+               ! will be applied via "understory_death" via the disturbance algorithm
+               ! Important: Degredation rates really only have an impact when
+               ! applied to the canopy layer. So we don't add to degredation
+               ! for collateral damage, even understory collateral damage.
+
+               if (canopy_layer .eq. 1) then
+                  lmort_collateral = lmort_collateral + logging_collateral_frac * adjustment
+               endif
+
             end if
-           
-            if (dbh >= logging_dbhmax_infra) then
-               lmort_infra      = 0.0_r8
-               l_degrad         = l_degrad + logging_mechanical_frac * adjustment
-            else
-               lmort_infra      = logging_mechanical_frac * adjustment
-            end if
-            !damage rates for size class < & > threshold_size need to be specified seperately
-
-            ! Collateral damage to smaller plants below the direct logging size threshold
-            ! will be applied via "understory_death" via the disturbance algorithm
-            ! Important: Degredation rates really only have an impact when
-            ! applied to the canopy layer. So we don't add to degredation
-            ! for collateral damage, even understory collateral damage.
-
-            if (canopy_layer .eq. 1) then
-                lmort_collateral = logging_collateral_frac * adjustment
-            else
-                lmort_collateral = 0._r8
-            endif
-
-         else
-            lmort_direct    = 0.0_r8
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
          end if
-      else 
-         lmort_direct    = 0.0_r8
-         lmort_collateral = 0.0_r8
-         lmort_infra      = 0.0_r8
-         l_degrad         = 0.0_r8
-      end if
+
+      end do
 
    end subroutine LoggingMortality_frac
 

@@ -49,7 +49,6 @@ module EDPatchDynamicsMod
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
-  use EDLoggingMortalityMod, only : logging_time
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -192,8 +191,9 @@ contains
           currentCohort%hmort = hmort
           currentCohort%frmort = frmort
 
-          call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                lmort_direct,lmort_collateral,lmort_infra,l_degrad )
+          call LoggingMortality_frac(bc_in, &
+               currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+               lmort_direct,lmort_collateral,lmort_infra,l_degrad )
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral

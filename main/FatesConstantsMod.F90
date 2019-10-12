@@ -30,6 +30,10 @@ module FatesConstantsMod
   integer, parameter, public :: n_anthro_disturbance_categories = 2
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
+
+  ! labels for logging flags
+  integer, parameter, public :: logging_byarea = 1  
+  integer, parameter, public :: logging_bymass = 2
   
   ! Error Tolerances
 
