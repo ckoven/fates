@@ -1016,6 +1016,7 @@ contains
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
          hlm_use_nocomp = unset_int   
+         hlm_use_bigleaf = unset_int   
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1270,6 +1271,13 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+        if(hlm_use_bigleaf.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for no competition mode unset. use_bigleaf exiting '
+            end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
@@ -1391,6 +1399,11 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
                end if
 
+            case('use_bigleaf')
+                hlm_use_bigleaf = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_bigleaf= ',ival,' to FATES'
+               end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival
