@@ -47,6 +47,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod    , only : hlm_use_bigleaf
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -2262,66 +2263,71 @@ contains
                       fuse_flag = 1
                       if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
 
-                         !-----------------------------------------------------------------------------------
-                         ! check to see if both patches are older than the age at which we force them to fuse
-                         !-----------------------------------------------------------------------------------
-
-                         if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
-                              currentPatch%age .le. max_age_of_second_oldest_patch ) then
+                         !----------------------------------------------------------------------------
+                         ! in big-leaf mode, always fuse everything that is not categorically distinct
+                         !----------------------------------------------------------------------------
+                         if ( .not. hlm_use_bigleaf ) then
 
 
-                            !------------------------------------------------------------
-                            ! the next bit of logic forces fusion of two patches which 
-                            ! both have tiny biomass densities. without this,
-                            ! fates gives a bunch of really young patches which all have 
-                            ! almost no biomass and so don't need to be distinguished 
-                            ! from each other. but if force_patchfuse_min_biomass is too big,
-                            ! it takes too long for the youngest patch to build up enough 
-                            ! biomass to be its own distinct entity, which leads to large 
-                            ! oscillations in the patch dynamics and dependent variables.
-                            !------------------------------------------------------------
+                            !-----------------------------------------------------------------------------------
+                            ! check to see if both patches are older than the age at which we force them to fuse
+                            !-----------------------------------------------------------------------------------
 
-                            if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
-                                 sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
+                            if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
+                                 currentPatch%age .le. max_age_of_second_oldest_patch ) then
 
-                               !---------------------------------------------------------------------!
-                               ! Calculate the difference criteria for each pft and dbh class        !
-                               !---------------------------------------------------------------------!   
+                               !------------------------------------------------------------
+                               ! the next bit of logic forces fusion of two patches which 
+                               ! both have tiny biomass densities. without this,
+                               ! fates gives a bunch of really young patches which all have 
+                               ! almost no biomass and so don't need to be distinguished 
+                               ! from each other. but if force_patchfuse_min_biomass is too big,
+                               ! it takes too long for the youngest patch to build up enough 
+                               ! biomass to be its own distinct entity, which leads to large 
+                               ! oscillations in the patch dynamics and dependent variables.
+                               !------------------------------------------------------------
 
-                               do ft = 1,numpft        ! loop over pfts
-                                  do z = 1,n_dbh_bins      ! loop over hgt bins 
+                               if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
+                                    sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
 
-                                     !----------------------------------
-                                     ! is there biomass in this category?
-                                     !----------------------------------
+                                  !---------------------------------------------------------------------!
+                                  ! Calculate the difference criteria for each pft and dbh class        !
+                                  !---------------------------------------------------------------------!   
 
-                                     if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
-                                          tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
+                                  do ft = 1,numpft        ! loop over pfts
+                                     do z = 1,n_dbh_bins      ! loop over hgt bins 
 
-                                        !---------------------------------------------------------------------!
-                                        ! what is the relative difference in biomass in this category between
-                                        ! the two patches?
-                                        !---------------------------------------------------------------------!
+                                        !----------------------------------
+                                        ! is there biomass in this category?
+                                        !----------------------------------
 
-                                        norm = abs(currentPatch%pft_agb_profile(ft,z) - &
-                                             tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
-                                             &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
+                                        if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
+                                             tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
-                                        !---------------------------------------------------------------------!
-                                        ! Look for differences in profile biomass, above the minimum biomass  !
-                                        !---------------------------------------------------------------------!
+                                           !---------------------------------------------------------------------!
+                                           ! what is the relative difference in biomass in this category between
+                                           ! the two patches?
+                                           !---------------------------------------------------------------------!
 
-                                        if(norm  > profiletol)then
+                                           norm = abs(currentPatch%pft_agb_profile(ft,z) - &
+                                                tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
+                                                &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
 
-                                           fuse_flag = 0 !do not fuse  - keep apart. 
+                                           !---------------------------------------------------------------------!
+                                           ! Look for differences in profile biomass, above the minimum biomass  !
+                                           !---------------------------------------------------------------------!
 
-                                        endif ! profile tol           
-                                     endif ! biomass(ft,z) .gt. 0
-                                  enddo !ht bins
-                               enddo ! PFT
-                            endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
-                         endif ! maxage
+                                           if(norm  > profiletol)then
 
+                                              fuse_flag = 0 !do not fuse  - keep apart. 
+
+                                           endif ! profile tol           
+                                        endif ! biomass(ft,z) .gt. 0
+                                     enddo !ht bins
+                                  enddo ! PFT
+                               endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
+                            endif ! maxage
+                         endif ! hlm_use_bigleaf
 
                          ! Do not fuse patches that have different PFT labels in nocomp mode
                          if(hlm_use_nocomp.eq.itrue.and. &
