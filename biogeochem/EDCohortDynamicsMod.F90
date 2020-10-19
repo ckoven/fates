@@ -1037,7 +1037,7 @@ contains
 
                  !Criteria used to divide up the height continuum into different cohorts.
 
-                 if (diff < dynamic_size_fusion_tolerance .or. hlm_use_bigleaf) then
+                 if (diff < dynamic_size_fusion_tolerance .or. hlm_use_bigleaf .eq. itrue) then
 
                     ! Only fuse if the cohorts are within x years of each other 
                     ! if they are the same age we make diff 0- to avoid errors divding by zero
@@ -1050,7 +1050,7 @@ contains
                             (0.5_r8*(currentCohort%coage + nextc%coage)))
                     end if
 
-                    if (coage_diff <= dynamic_age_fusion_tolerance .or. hlm_use_bigleaf ) then 
+                    if (coage_diff <= dynamic_age_fusion_tolerance .or. hlm_use_bigleaf .eq. itrue ) then 
 
                        ! Don't fuse a cohort with itself!
                        if (.not.associated(currentCohort,nextc) ) then
@@ -1059,7 +1059,7 @@ contains
 
                              ! check cohorts in same c. layer. before fusing
 
-                             if (currentCohort%canopy_layer == nextc%canopy_layer .or. hlm_use_bigleaf) then 
+                             if (currentCohort%canopy_layer == nextc%canopy_layer .or. hlm_use_bigleaf .eq. itrue) then 
 
                                 ! Note: because newly recruited cohorts that have not experienced
                                 ! a day yet will have un-known flux quantities or change rates

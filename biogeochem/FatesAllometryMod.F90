@@ -98,7 +98,6 @@ module FatesAllometryMod
   use EDTypesMod       , only : nlevleaf, dinc_ed
   use EDTypesMod       , only : nclmax
 
-
   implicit none
 
   private
@@ -123,7 +122,8 @@ module FatesAllometryMod
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
-
+  public :: update_bigleaf_cohort_diameter_population !force new size and diameter to create big-leaf mode
+  
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -2341,6 +2341,50 @@ contains
 
      return
   end subroutine ForceDBH
+
+  ! =========================================================================
+
+  subroutine update_bigleaf_cohort_diameter_population(agb, area, ipt, n_in, dbh_in, n_out, dbh_out)
+    
+    ! this subroutine updates both the size and number density of a cohort, in order to conserve
+    ! the structural biomass and the crown area of the cohorts, as well as the cohort allometries
+    ! for crown area and biomass.
+
+    ! Arguments
+
+    real(r8),intent(in) :: agb         ! AGB of cohort []
+    real(r8),intent(in) :: area        ! total patch area that resulting cohort's crown area qill be equal to
+    integer ,intent(in) :: ipft        ! PFT of cohort
+    real(r8),intent(in) :: n_in        ! number density of cohort before reset
+    real(r8),intent(in) :: dbh_in      ! diameter of cohort before reset
+    real(r8),intent(out):: n_out       ! number density of cohort after reset
+    real(r8),intent(out):: dbh_out     ! diameter of cohort after reset
+    
+    ! currenty this code assumes a power-law like relationship for both crown area and biomass:
+    ! crown_area = n * c1 * dbh ** c2
+    ! biomass    = n * b1 * dbh ** b2
+
+    ! figure out the c1,c2 values from crown area allometry
+
+    ! figure out the b1,b2 values from a allometry
+
+    associate( p1           => EDPftvarcon_inst%allom_agb1(ipft), &
+               p2           => EDPftvarcon_inst%allom_agb2(ipft), &
+               p3           => EDPftvarcon_inst%allom_agb3(ipft), &
+               p4           => EDPftvarcon_inst%allom_agb4(ipft), &
+               wood_density => EDPftvarcon_inst%wood_density(ipft), &
+               c2b          => EDPftvarcon_inst%c2b(ipft), &
+               allom_amode  => EDPftvarcon_inst%allom_amode(ipft), &
+               dbh_maxh     => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
+               allom_lmode  => EDPftvarcon_inst%allom_lmode(ipft),  &
+               d2bl_p2      => EDPftvarcon_inst%allom_d2bl2(ipft),  &
+               d2bl_ediff   => EDPftvarcon_inst%allom_blca_expnt_diff(ipft), &
+               d2ca_min     => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
+               d2ca_max     => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
+
+    n_out = (agb/b1 * (a/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
+
+  end subroutine update_bigleaf_cohort_diameter_population
 
   ! =========================================================================
   

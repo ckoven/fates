@@ -19,6 +19,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_reference_date
   use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceTypesMod        , only : hlm_use_bigleaf
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
@@ -262,15 +263,20 @@ contains
     ! fuse on the spawned patches.
     if ( do_patch_dynamics.eq.itrue ) then
        call fuse_patches(currentSite, bc_in )        
-       
-       ! If using BC FATES hydraulics, update the rhizosphere geometry
-       ! based on the new cohort-patch structure
-       ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
-       ! density --> node radii and volumes)
-       if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-          call UpdateSizeDepRhizHydProps(currentSite, bc_in)
-          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
-       end if
+    end if
+
+    ! if using FATES bigleaf mode, recalculate the size and number density of cohorts
+    if (hlm_use_bigleaf .eq. itrue) then
+       call update_bigleaf_cohort_diameter_population(currentSite)
+    endif
+
+    ! If using BC FATES hydraulics, update the rhizosphere geometry
+    ! based on the new cohort-patch structure
+    ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
+    ! density --> node radii and volumes)
+    if( (do_patch_dynamics.eq.itrue) .and. (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
+       call UpdateSizeDepRhizHydProps(currentSite, bc_in)
+       call UpdateSizeDepRhizHydStates(currentSite, bc_in)
     end if
 
     call TotalBalanceCheck(currentSite,4)
