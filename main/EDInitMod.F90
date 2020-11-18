@@ -132,6 +132,11 @@ contains
     allocate(site_in%area_pft(1:numpft))
     allocate(site_in%use_this_pft(1:numpft))
 
+    ! SP mode
+    allocate(site_in%sp_tlai(1:numpft))
+    allocate(site_in%sp_tsai(1:numpft))
+    allocate(site_in%sp_htop(1:numpft))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
@@ -315,10 +320,6 @@ contains
                end do
             end do !hlm_pft
 
-           ! re-normalize PFT area to ensure it sums to one.
-           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM) 
-           ! the bare ground will no longer be proscribed and should emerge from FATES
-
             do ft =  1,numpft
               if(sites(s)%area_pft(ft).lt.0.01_r8)then
                  sites(s)%area_pft(ft)=0.0_r8 !remove tiny patches to prevent numerical errors in terminate patches
@@ -326,18 +327,23 @@ contains
               endif
             end do
 
-           sumarea = sum(sites(s)%area_pft(1:numpft))
+           ! re-normalize PFT area to ensure it sums to one.
+           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
+           ! the bare ground will no longer be proscribed and should emerge from FATES
+           ! this may or may not be the right way to deal with this?
+
+            sumarea = sum(sites(s)%area_pft(1:numpft))
            do ft =  1,numpft
              if(sumarea.gt.0._r8)then
-               sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
+                sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
              else
-               sites(s)%area_pft(ft)= 1.0_r8/numpft
-               write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
-            end if
-          end do !ft
-          end if
+                sites(s)%area_pft(ft)= 1.0_r8/numpft
+                write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
+             end if
+           end do !ft
+         end if !fixed biogeog
 
-          do ft = 1,numpft
+         do ft = 1,numpft
            sites(s)%use_this_pft(ft) = itrue
            if(hlm_use_fixed_biogeog.eq.itrue)then
              if(sites(s)%area_pft(ft).gt.0.0_r8)then
@@ -346,11 +352,9 @@ contains
                 sites(s)%use_this_pft(ft) = ifalse
              end if !area
            end if !SBG
-          end do !ft
-          
-       end do
-
-    end if
+         end do !ft
+       end do !site loop
+     end if !restart
 
     return
   end subroutine set_site_properties

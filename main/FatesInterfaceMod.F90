@@ -376,6 +376,12 @@ contains
 
       allocate(bc_in%pft_areafrac(maxpft))
 
+      ! Variables for SP mode. 
+      if(hlm_use_sp.eq.itrue) then
+        allocate(bc_in%hlm_sp_tlai(maxpft))
+        allocate(bc_in%hlm_sp_tsai(maxpft))     
+        allocate(bc_in%hlm_sp_htop(maxpft))
+      end if 
       return
    end subroutine allocate_bcin
 
@@ -1017,6 +1023,7 @@ contains
          hlm_use_fixed_biogeog = unset_int
          hlm_use_nocomp = unset_int   
          hlm_use_bigleaf = unset_int   
+         hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1254,8 +1261,6 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-
- 
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
@@ -1266,7 +1271,7 @@ contains
 
         if(hlm_use_nocomp.eq.unset_int) then
               if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for no competition mode unset. use_nocomp exiting '
+             write(fates_log(), *) 'switch for no competition mode. '
             end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1276,6 +1281,12 @@ contains
              write(fates_log(), *) 'switch for no competition mode unset. use_bigleaf exiting '
             end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
+
+         if(hlm_use_sp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for SP mode. '
+            end if
+	       call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
@@ -1285,6 +1296,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -1392,7 +1407,7 @@ contains
                if (fates_global_verbose()) then
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
-             
+            
             case('use_nocomp')
                 hlm_use_nocomp = ival
                if (fates_global_verbose()) then
@@ -1404,6 +1419,12 @@ contains
                if (fates_global_verbose()) then
                    write(fates_log(),*) 'Transfering hlm_use_bigleaf= ',ival,' to FATES'
                end if
+
+            case('use_sp')
+            hlm_use_sp = ival
+            if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+            end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival

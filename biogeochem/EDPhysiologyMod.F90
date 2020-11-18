@@ -15,6 +15,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : nleafage
   use FatesInterfaceTypesMod, only    : hlm_use_planthydro
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : g_per_kg
@@ -27,6 +28,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : leafc_from_treelai
   use FatesAllometryMod   , only : decay_coeff_kn
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
@@ -107,6 +109,7 @@ module EDPhysiologyMod
 
   public :: trim_canopy
   public :: phenology
+  public :: satellite_phenology
   public :: recruitment
   public :: ZeroLitterFluxes
   public :: FluxIntoLitterPools
@@ -1063,6 +1066,7 @@ contains
 
   end subroutine phenology
 
+
   ! ============================================================================
   subroutine phenology_leafonoff(currentSite)
     !
@@ -1329,7 +1333,143 @@ contains
 
   end subroutine phenology_leafonoff
 
+  ! =====================================================================================
 
+  subroutine satellite_phenology(currentSite, bc_in)
+
+   ! -----------------------------------------------------------------------------------
+   ! Takes the daily inputs of leaf area index, stem area index and canopy height and 
+   ! translates them into a FATES structure with one patch and one cohort per PFT
+   ! The leaf area of the cohort is modified each day to match that asserted by the HLM 
+   ! -----------------------------------------------------------------------------------
+
+    ! !USES:                                                                                                       
+    !                                                                                                              
+    ! !ARGUMENTS:                                                                                                  
+    type(ed_site_type), intent(inout), target :: currentSite
+    type(bc_in_type),   intent(in)            :: bc_in
+
+    class(prt_vartypes), pointer :: prt
+
+    ! !LOCAL VARIABLES:                                                                                            
+    type(ed_patch_type) , pointer :: currentPatch     
+    type(ed_cohort_type), pointer :: currentCohort
+
+    real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
+    real(r8) ::  leaf_c        ! leaf carbon estimated to generate target tlai
+
+    integer ::   fates_pft     ! fates pft numer for weighting loop
+    integer  ::   hlm_pft      ! host land model pft number for weighting loop.
+    integer ::   s             ! site index
+
+
+   real(r8) ::  spread     ! need to send a fixed value of patch spread to carea_allom
+
+   ! To Do in this routine.
+   ! Get access to HLM input varialbes. 
+   ! Weight them by PFT
+   ! Loop around patches, and for each single cohort in each patch 
+   ! determine what 'n'	  should be from the canopy height.
+   ! determine the leaf biomass that it should have. 
+   ! figure out how this will interact with the canopy_structure routines. 
+   ! determine what 'n' should be from the canopy height. 
+
+  currentPatch => currentSite%oldest_patch
+  do while (associated(currentPatch))
+
+       ! WEIGHTING OF FATES PFTs on to HLM_PFTs
+       ! add up the area associated with each FATES PFT
+       ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+       ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+
+       currentSite%sp_tlai(1:numpft) = 0._r8
+       currentSite%sp_tsai(1:numpft) = 0._r8
+       currentSite%sp_htop(1:numpft) = 0._r8
+
+       ! weight each fates PFT target for lai, sai and htop by the area of the 
+       ! contrbuting HLM PFTs.
+       ! we only need to do this for the patch/fates_pft we are currently in
+       fates_pft = currentPatch%nocomp_pft_label
+       do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+         if(bc_in%pft_areafrac(hlm_pft).gt.0.0_r8)then
+           !leaf area index
+            currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
+                    bc_in%hlm_sp_tlai(hlm_pft) * bc_in%pft_areafrac(hlm_pft)
+           !stem area index
+           currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) + &
+                 bc_in%hlm_sp_tsai(hlm_pft) *	bc_in%pft_areafrac(hlm_pft)      		       
+           ! canopy height
+           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) + &
+                 bc_in%hlm_sp_htop(hlm_pft) * bc_in%pft_areafrac(hlm_pft)
+         end if ! there is some area in this patch
+       end do !hlm_pft
+
+       ! weight for total area in each patch/fates_pft
+       if(currentPatch%area.gt.0.0_r8)then 
+         currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /currentPatch%area
+          currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /currentPatch%area
+           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /currentPatch%area
+        endif
+  
+    ! ------------------------------------------------------------
+    ! now we have the target lai, sai and htop for each PFT/patch
+    ! find properties of the cohort that go along with that
+    ! 1. Find canopy area from HTOP (height)
+    ! 2. Find 'n' associated with canopy area, given a closed canopy
+    ! 3. Find 'bleaf' associated with TLAI and canopy area. 
+    ! ------------------------------------------------------------ 
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))
+      
+      ! Do some checks 
+      if(associated(currentCohort%shorter))then
+        write(*,*) "there is more than one cohort in SP mode"
+      end if
+
+      fates_pft =currentCohort%pft
+      if(fates_pft.ne.currentPatch%nocomp_pft_label)then
+        write(*,*) 'wrong PFT label in cohort in SP mode',fates_pft,currentPatch%nocomp_pft_label
+      end if
+
+    !------------------------------------------
+    !  Calculate dbh from input height, and c_area from dbh
+    !------------------------------------------
+    currentCohort%hite = currentPatch%sp_htop
+    call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+    spread = 0.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
+                     ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
+                     ! SP mode. 
+    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+
+    !------------------------------------------
+    !  Calculate canopy N assuming patch area is full
+    !------------------------------------------
+    currentCohort%n = currentPatch%area / currentCohort%c_area
+
+    ! ------------------------------------------
+    ! Calculate leaf carbon from target treelai
+    ! ------------------------------------------
+    currentCohort%treelai = currentPatch%sp_tlai
+    leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
+                  currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+
+      call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
+      
+      ! assert sai
+      currentCohort%treesai = currentSite%sp_tsai(fates_pft)
+
+    !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
+
+      currentCohort => currentCohort%shorter
+    end do !cohort loop
+    currentPatch => currentPatch%younger
+  end do ! patch loop     
+
+  end subroutine satellite_phenology
   ! =====================================================================================
 
   subroutine SeedIn( currentSite, bc_in )
