@@ -8,6 +8,7 @@
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
+  use FatesInterfaceTypesMod         , only : nlevage
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
@@ -686,17 +687,19 @@ contains
     real(r8) df               !distance fire has travelled forward in m
     real(r8) db               !distance fire has travelled backward in m
     real(r8) AB               !daily area burnt in m2 per km2
-    
+    real(r8) :: site_area_age(nlevage)  ! Total site area in each age class (for weighting)
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
     real(r8) anthro_ign_count  ! anthropogenic ignition count/km2/day
     integer :: iofp  ! index of oldest fates patch
+    integer :: ia    ! loop counter for patch age bins
     real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt(:) = 0.0_r8  
     currentSite%NF_successful = 0._r8
+    site_area_age(:) = 0.0_r8
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
@@ -816,7 +819,8 @@ contains
             !
             ! accumulate frac_burnt % at site level
             currentSite%frac_burnt(currentPatch%age_class) = currentSite%frac_burnt(currentPatch%age_class) + &
-                 currentPatch%frac_burnt * currentPatch%area / area
+                 currentPatch%frac_burnt * currentPatch%area
+            
             !
          else     
             currentPatch%fire       = 0 ! No fire... :-/
@@ -825,11 +829,23 @@ contains
          endif         
           
        endif! NF ignitions check
+
+       ! Increment the sum of the total area of patches in this age class
+       site_area_age(currentPatch%age_class) = site_area_age(currentPatch%age_class) + currentPatch%area
        
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
 
+    ! Normalize the mean site-level burnt fraction by the total site area
+    ! in the age class
+    
+    do ia = 1,nlevage
+       currentSite%frac_burnt(ia) = currentSite%frac_burnt(ia)/max(site_area_age(ia),nearzero)
+    end do
+
+
+    
   end subroutine area_burnt_intensity
 
 
