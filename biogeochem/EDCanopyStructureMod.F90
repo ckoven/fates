@@ -12,6 +12,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
+  use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
@@ -27,10 +28,10 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -149,7 +150,6 @@ contains
       
 
       !----------------------------------------------------------------------
-
       currentPatch => currentSite%oldest_patch    
       ! 
       ! zero site-level demotion / promotion tracking info
@@ -280,12 +280,12 @@ contains
                   write(fates_log(),*) 'coh n:',currentCohort%n
                   write(fates_log(),*) 'coh carea:',currentCohort%c_area
 		  ipft=currentCohort%pft
-		  write(fates_log(),*) 'maxh:',EDPftvarcon_inst%allom_dbh_maxheight(ipft)
-                  write(fates_log(),*) 'lmode: ',EDPftvarcon_inst%allom_lmode(ipft)
-		  write(fates_log(),*) 'd2bl2: ',EDPftvarcon_inst%allom_d2bl2(ipft)
-		  write(fates_log(),*) 'd2bl_ediff: ',EDPftvarcon_inst%allom_blca_expnt_diff(ipft)
-		  write(fates_log(),*) 'd2ca_min: ',EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft)
-		  write(fates_log(),*) 'd2ca_max: ',EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft)
+		  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
+                  write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
+		  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
+		  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
+		  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
+		  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
                   currentCohort => currentCohort%shorter
                enddo
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -364,11 +364,10 @@ contains
       real(r8) :: total_crownarea_of_tied_cohorts
 
       ! First, determine how much total canopy area we have in this layer
-
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
 
       demote_area = arealayer - currentPatch%area
-      
+
       if ( demote_area > area_target_precision ) then
          
          ! Is this layer currently over-occupied? 
@@ -378,10 +377,9 @@ contains
          sumweights  = 0.0_r8
          currentCohort => currentPatch%shortest
          do while (associated(currentCohort))
-            
             call carea_allom(currentCohort%dbh,currentCohort%n, &
                  currentSite%spread,currentCohort%pft,currentCohort%c_area)
-
+             
             if(debug) then
                if(currentCohort%c_area<0._r8)then
                   write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
@@ -655,7 +653,7 @@ contains
                   ! remains in the upper-story.  The original is the one
                   ! demoted to the understory
 
-                  
+                                    
                   allocate(copyc)
 
                   ! Initialize the PARTEH object and point to the
@@ -1223,7 +1221,7 @@ contains
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
                 currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          if( (EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 ) .and. &
+          if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
               (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
@@ -1262,9 +1260,8 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
-    use EDPftvarcon          , only : EDPftvarcon_inst
     use FatesConstantsMod    , only : itrue
-    
+
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1275,7 +1272,7 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
-    integer  :: ifp
+    integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch. 
     real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.  
     real(r8) :: leaf_c           ! leaf carbon [kg]
@@ -1330,10 +1327,11 @@ contains
              call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
-          
+
+          if(hlm_use_sp.eq.ifalse)then
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
-
+          endif
              currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
@@ -1342,17 +1340,38 @@ contains
                   
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if(EDPftvarcon_inst%woody(ft)==1)then
+                if( int(prt_params%woody(ft))==itrue)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
-             
+
+             ! adding checks for SP and NOCOMP modes. 
+             if(currentPatch%nocomp_pft_label.eq.0)then
+                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+
+             if(hlm_use_sp.eq.itrue)then
+
+               if(associated(currentPatch%tallest%shorter))then
+                 write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+
+               if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
+                 write(fates_log(),*) 'too much canopy in summary',s, &
+		 currentPatch%nocomp_pft_label, currentPatch%total_canopy_area-currentPatch%area
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+             end if  !sp mode
+
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
                 write(fates_log(),*) 'FATES: dbh or n is zero in canopy_summarization', &
                       currentCohort%dbh,currentCohort%n
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
+
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
                 write(fates_log(),*) 'FATES: PFT or trim is zero in canopy_summarization', &
                       currentCohort%pft,currentCohort%canopy_trim
@@ -1371,7 +1390,9 @@ contains
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
-                     currentPatch%total_canopy_area ,currentPatch%area
+                     currentPatch%total_canopy_area ,currentPatch%area, &
+                     currentPatch%total_canopy_area -currentPatch%area,&
+                     currentPatch%nocomp_pft_label
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              currentPatch%total_canopy_area = currentPatch%area
@@ -1633,7 +1654,6 @@ contains
              
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
-                
                 ft = currentCohort%pft 
                 cl = currentCohort%canopy_layer
                 
@@ -1875,8 +1895,6 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceTypesMod , only : bc_out_type
-     use EDPftvarcon       , only : EDPftvarcon_inst
-
 
      !
      ! !ARGUMENTS    
@@ -1904,8 +1922,10 @@ contains
         currentPatch => sites(s)%oldest_patch
         c = fcolumn(s)
         do while(associated(currentPatch))
+          if(currentPatch%nocomp_pft_label.ne.0)then 
+           ! only increase ifp for veg patches, not bareground (in SP mode)
            ifp = ifp+1
-
+         endif ! stay with ifp=0 for bareground patch. 
            if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
               write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
               currentPatch%total_canopy_area = currentPatch%area
@@ -1920,7 +1940,6 @@ contains
            endif
            
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
-
            ! Use leaf area weighting for all cohorts in the patch to define the characteristic
            ! leaf width used by the HLM
            ! ----------------------------------------------------------------------------
@@ -1944,15 +1963,17 @@ contains
            bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
            bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
-
            ! We are assuming here that grass is all located underneath tree canopies. 
            ! The alternative is to assume it is all spatial distinct from tree canopies.
            ! In which case, the bare area would have to be reduced by the grass area...
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
-           
-           bc_out(s)%canopy_fraction_pa(ifp) = &
+           if(currentPatch%area.gt.0.0_r8)then
+              bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+           else
+              bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+           endif
 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                 (currentPatch%area/AREA)
@@ -1960,7 +1981,9 @@ contains
            total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
    
            total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
- 
+      
+           bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
+
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
            ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
@@ -1983,7 +2006,6 @@ contains
            else
               bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
            end if
-           
            currentPatch => currentPatch%younger
         end do
 
@@ -2006,8 +2028,14 @@ contains
            currentPatch => sites(s)%oldest_patch
            ifp = 0
            do while(associated(currentPatch))
+            if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
               ifp = ifp+1
               bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+             else ! for the bareground patch (in SP mode). 
+               bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
+             endif ! veg patch
+
+
               currentPatch => currentPatch%younger
            end do
            
@@ -2062,6 +2090,7 @@ contains
                     cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
+
      elseif (trim(ai_type) == 'esai') then
          do cl = 1,cpatch%NCL_p
            do ft = 1,numpft
@@ -2165,6 +2194,10 @@ contains
         ! If so we need to make another layer.
         if(arealayer > currentPatch%area)then
            z = z + 1
+           if(hlm_use_sp)then
+              write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+           end if
+          
         endif
      end if
      

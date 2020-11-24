@@ -7,6 +7,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
+  use PRTParametersMod      , only : prt_params
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
@@ -30,9 +31,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
-  use EDTypesMod           , only : num_elements
-  use EDTypesMod           , only : element_list
-  use EDTypesMod           , only : element_pos
+  use PRTGenericMod        , only : num_elements
+  use PRTGenericMod        , only : element_list
   use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
@@ -45,6 +45,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesGlobals         , only : endrun => fates_endrun
@@ -233,7 +234,7 @@ contains
                   currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  prt_params%allom_agb_frac(currentCohort%pft) * &
                   SF_val_CWD_frac(ncwd) * logging_export_frac
           endif
 
@@ -430,7 +431,8 @@ contains
 
   end subroutine disturbance_rates
   
-  ! ============================================================================
+    ! ============================================================================
+
   subroutine spawn_patches( currentSite, bc_in)
     !
     ! !DESCRIPTION:
@@ -735,7 +737,7 @@ contains
                       
                    else
                       ! small trees 
-                      if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                      if( int(prt_params%woody(currentCohort%pft)) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -875,7 +877,7 @@ contains
                    ! burned off.  Here, we remove that mass, and
                    ! tally it in the flux we sent to the atmosphere
                    
-                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
@@ -892,7 +894,7 @@ contains
                        (currentCohort%fire_mort < 0._r8) .or. &
                        (currentCohort%fire_mort > 1._r8)) then
                        write(fates_log(),*) 'unexpected fire fractions'
-                       write(fates_log(),*) EDPftvarcon_inst%woody(currentCohort%pft)
+                       write(fates_log(),*) prt_params%woody(currentCohort%pft)
                        write(fates_log(),*) leaf_burn_frac
                        write(fates_log(),*) currentCohort%fire_mort
                        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -953,7 +955,7 @@ contains
                       ! WHat to do with cohorts in the understory of a logging generated
                       ! disturbance patch?
                       
-                      if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                      if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -1273,6 +1275,22 @@ contains
        patchno = patchno + 1
        currentPatch => currentPatch%younger
     enddo
+
+    if(hlm_use_sp)then
+      patchno = 1
+      currentPatch => currentSite%oldest_patch
+      do while(associated(currentPatch))
+        if(currentPatch%nocomp_pft_label.eq.0)then
+         ! for bareground patch, we make the patch number 0
+         ! we also do not count this in the veg. patch numbering scheme.
+          currentPatch%patchno = 0
+        else
+         currentPatch%patchno = patchno
+         patchno = patchno + 1
+        endif
+        currentPatch => currentPatch%younger
+       enddo
+    endif
 
   end subroutine set_patchno
 
@@ -1684,7 +1702,7 @@ contains
                   (fnrt_m + store_m) * num_dead_trees
              
              ! coarse root biomass per tree
-             bcroot = (sapw_m + struct_m) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft) )
+             bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
@@ -1705,7 +1723,7 @@ contains
              end do
 
              ! stem biomass per tree
-             bstem  = (sapw_m + struct_m) * EDPftvarcon_inst%allom_agb_frac(pft)
+             bstem  = (sapw_m + struct_m) * prt_params%allom_agb_frac(pft)
 
              ! Above ground coarse woody debris from twigs and small branches
              ! a portion of this pool may burn
@@ -1831,7 +1849,7 @@ contains
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
              
-          elseif(EDPftvarcon_inst%woody(pft) == itrue) then
+          elseif(int(prt_params%woody(pft)) == itrue) then
              
              ! Understorey trees. The total dead is based on their survivorship
              ! function, and the total area of disturbance.
@@ -1866,8 +1884,8 @@ contains
           end do
                  
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
-          ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
-          bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+          ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
+          bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
           call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
 
@@ -2543,7 +2561,6 @@ contains
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
     ! And then we will go about re-setting the map.
-
     if(associated(dp%older))then
        olderp => dp%older
     else
@@ -2558,6 +2575,7 @@ contains
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
     deallocate(dp)
+
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
