@@ -105,6 +105,7 @@ module EDTypesMod
   
   real(r8), parameter, public :: init_spread_near_bare_ground = 1.0_r8
   real(r8), parameter, public :: init_spread_inventory        = 0.0_r8
+  real(r8), parameter, public :: init_spread_closedcanopy     = 0.0_r8
 
 
   ! MODEL PARAMETERS

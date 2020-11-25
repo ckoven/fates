@@ -305,6 +305,7 @@ contains
                   prt_params%allom_agb_frac(currentCohort%pft)
              call update_bigleaf_cohort_diameter_population(agb_struct, currentPatch%area, &
                   currentCohort%pft, currentCohort%n, currentCohort%dbh, n_new, dbh_new)
+             ! update the size and number density of the cohort
              ccohort%n = n_new
              ccohort%bdh = dbh_new
              currentCohort => currentCohort%taller
@@ -684,7 +685,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
     !-----------------------------------------------------------------------
-    if(hlm_use_sp.eq.ifalse)then
+    if( .not. (hlm_use_sp.eq.itrue .or. hlm_use_bigleaf.eq.itrue))then
       call canopy_spread(currentSite)
     end if
 

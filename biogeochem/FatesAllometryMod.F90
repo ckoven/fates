@@ -2453,6 +2453,10 @@ contains
     real(r8),intent(out):: n_out       ! number density of cohort after reset
     real(r8),intent(out):: dbh_out     ! diameter of cohort after reset
     
+    ! !LOCAL VARIABLES:
+    real(r8) :: c1, c2                 ! crown area allometry parameters
+    real(r8) :: b1, b2                 ! agb allometry parameters
+
     ! currenty this code assumes a power-law like relationship for both crown area and biomass:
     ! crown_area = n * c1 * dbh ** c2
     ! biomass    = n * b1 * dbh ** b2
@@ -2475,7 +2479,39 @@ contains
                d2ca_min     => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
                d2ca_max     => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
 
-    n_out = (agb_struct/b1 * (a/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
+      c2 = d2bl_p2 + allom_blca_expnt_diff
+      c1 = d2ca_min  !! this assumes that site%spread term is set to 0., which should be the case in bigleaf mode
+
+      select case(int(allom_amode))
+      case (1) !"salda")
+         !!! bagw     = a1 * h**a2 * d**a3 * r**a4
+         ! because of h term, this is a bit more complicated. 
+         ! not implemented yet
+         write(fates_log(),*) 'allom_amode specified: ',allom_amode
+         write(fates_log(),*) 'This hasnt been implemented yet for bigleaf mode.  Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))         
+         !!!call h_allom(d,ipft,h,dhdd)
+         !!!call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
+      case (2) !"2par_pwr")
+         ! Switch for woodland dbh->drc
+         !!! bagw    = (p1 * d**p2)/c2b
+         !!! call d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
+         b1 = p1
+         b2 = p2
+      case (3) !"chave14") 
+         ! not implemented yet
+         write(fates_log(),*) 'allom_amode specified: ',allom_amode
+         write(fates_log(),*) 'This hasnt been implemented yet for bigleaf mode.  Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))         
+      case DEFAULT
+         write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+      n_out = (agb_struct/b1 * (area/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
+
+      dbh_out = (area / ( n_out * c1 )) ** ( 1._r8 / c2 )
 
   end subroutine update_bigleaf_cohort_diameter_population
 

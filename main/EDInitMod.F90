@@ -29,6 +29,7 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
+  use EDTypesMod                , only : init_spread_closedcanopy
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
   use PRTGenericMod             , only : num_elements
@@ -50,6 +51,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod         , only : hlm_use_bigleaf
 
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
@@ -479,7 +481,12 @@ contains
           ! Initialize the site-level crown area spread factor (0-1)
           ! It is likely that closed canopy forest inventories
           ! have smaller spread factors than bare ground (they are crowded)
-          sites(s)%spread     = init_spread_near_bare_ground
+          
+          if ( hlm_use_bigleaf .eq. itrue) then
+             sites(s)%spread     = init_spread_closedcanopy
+          else
+             sites(s)%spread     = init_spread_near_bare_ground
+          endif
 
           start_patch = 1   ! start at the first vegetated patch
           if(hlm_use_nocomp.eq.itrue)then
