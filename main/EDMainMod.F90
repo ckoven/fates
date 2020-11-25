@@ -31,6 +31,7 @@ module EDMainMod
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
   use PRTGenericMod            , only : phosphorus_element
+  use PRTParametersMod         , only : prt_params
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -77,6 +78,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : update_bigleaf_cohort_diameter_population
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
@@ -144,6 +146,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
+    real(r8) :: dbh_new, n_new, agb_struct ! temp vars for big-leaf mode
 
     !-----------------------------------------------------------------------
 
@@ -269,12 +272,12 @@ contains
       do_patch_dynamics = ifalse
     end if
   
-   if(hlm_use_nocomp.eq.itrue)then
-      ! n.b. the this is currently set to false to get around a memory leak that occurs
-      ! when we have multiple patches for each PFT. 
-      ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
-      do_patch_dynamics = ifalse
-    end if
+   ! if(hlm_use_nocomp.eq.itrue)then
+   !    ! n.b. the this is currently set to false to get around a memory leak that occurs
+   !    ! when we have multiple patches for each PFT. 
+   !    ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
+   !    do_patch_dynamics = ifalse
+   !  end if
 
     if(hlm_use_sp.eq.itrue)then ! cover for potential changes in nocomp logic above.  
        do_patch_dynamics = ifalse
@@ -294,7 +297,20 @@ contains
 
     ! if using FATES bigleaf mode, recalculate the size and number density of cohorts
     if (hlm_use_bigleaf .eq. itrue) then
-       call update_bigleaf_cohort_diameter_population(currentSite)
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             agb_struct = ccohort%prt%GetState(struct_organ, carbon12_element) * &
+                  prt_params%allom_agb_frac(currentCohort%pft)
+             call update_bigleaf_cohort_diameter_population(agb_struct, currentPatch%area, &
+                  currentCohort%pft, currentCohort%n, currentCohort%dbh, n_new, dbh_new)
+             ccohort%n = n_new
+             ccohort%bdh = dbh_new
+             currentCohort => currentCohort%taller
+          end do
+          currentPatch => currentPatch%older
+      end do
     endif
 
     ! If using BC FATES hydraulics, update the rhizosphere geometry

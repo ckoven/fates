@@ -2284,7 +2284,7 @@ contains
                          !----------------------------------------------------------------------------
                          ! in big-leaf mode, always fuse everything that is not categorically distinct
                          !----------------------------------------------------------------------------
-                         if ( .not. hlm_use_bigleaf ) then
+                         if ( .not. (hlm_use_bigleaf.eq.itrue .or. hlm_use_nocomp.eq.itrue)) then
 
 
                             !-----------------------------------------------------------------------------------

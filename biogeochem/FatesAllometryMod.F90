@@ -2437,7 +2437,7 @@ contains
 
   ! =========================================================================
 
-  subroutine update_bigleaf_cohort_diameter_population(agb, area, ipt, n_in, dbh_in, n_out, dbh_out)
+  subroutine update_bigleaf_cohort_diameter_population(agb_struct, area, ipft, n_in, dbh_in, n_out, dbh_out)
     
     ! this subroutine updates both the size and number density of a cohort, in order to conserve
     ! the structural biomass and the crown area of the cohorts, as well as the cohort allometries
@@ -2445,7 +2445,7 @@ contains
 
     ! Arguments
 
-    real(r8),intent(in) :: agb         ! AGB of cohort []
+    real(r8),intent(in) :: agb_struct  ! structural AGB of cohort [kg C]
     real(r8),intent(in) :: area        ! total patch area that resulting cohort's crown area qill be equal to
     integer ,intent(in) :: ipft        ! PFT of cohort
     real(r8),intent(in) :: n_in        ! number density of cohort before reset
@@ -2475,7 +2475,7 @@ contains
                d2ca_min     => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
                d2ca_max     => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
 
-    n_out = (agb/b1 * (a/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
+    n_out = (agb_struct/b1 * (a/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
 
   end subroutine update_bigleaf_cohort_diameter_population
 
