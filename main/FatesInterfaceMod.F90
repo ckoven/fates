@@ -1462,12 +1462,13 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        if(hlm_use_bigleaf.eq.unset_int) then
-              if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for no competition mode unset. use_bigleaf exiting '
+         if(hlm_use_bigleaf.eq.unset_int) then
+            if(fates_global_verbose()) then
+               write(fates_log(), *) 'switch for no competition mode unset. use_bigleaf exiting '
             end if
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+            
          if(hlm_use_sp.eq.unset_int) then
               if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for SP mode. '
@@ -1502,13 +1503,13 @@ contains
 
          if(present(ival))then
             select case (trim(tag))
-
+               
             case('masterproc')
                hlm_masterproc = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering masterproc = ',ival,' to FATES'
                end if
-
+               
             case('num_sw_bbands')
                hlm_numSwb = ival
                if (fates_global_verbose()) then
@@ -1520,50 +1521,50 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering index associated with visible SW rad = ',ival,' to FATES'
                end if
-            
+               
             case('nir_sw_index')
                hlm_inir = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering index associated with NIR SW rad = ',ival,' to FATES'
                end if
-
+               
             case('is_restart')
                hlm_is_restart = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering flag signaling restart / not-restart = ',ival,' to FATES'
                end if
-
+               
             case('num_lev_ground')
                hlm_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
-
+               
             case('soilwater_ipedof')
                hlm_ipedof = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
-
+               
             case('nitrogen_spec')
                hlm_nitrogen_spec = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_nitrogen_spec = ',ival,' to FATES'
                end if
-
+               
             case('phosphorus_spec')
                hlm_phosphorus_spec = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
                end if
-
+               
                
             case('max_patch_per_site')
                hlm_max_patch_per_site = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
                end if
-
+               
             case('use_vertsoilc')
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then
@@ -1575,114 +1576,114 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
-
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_spitfire_mode =',ival,' to FATES'
-              end if
-              
-           case('sf_nofire_def')
+               end if
+               
+            case('sf_nofire_def')
                hlm_sf_nofire_def = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_sf_nofire_def =',ival,' to FATES'
                end if
-
-           case('sf_scalar_lightning_def')
+               
+            case('sf_scalar_lightning_def')
                hlm_sf_scalar_lightning_def = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_sf_scalar_lightning_def =',ival,' to FATES'
                end if
-
-           case('sf_successful_ignitions_def')
+               
+            case('sf_successful_ignitions_def')
                hlm_sf_successful_ignitions_def = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_sf_successful_ignition_def =',ival,' to FATES'
                end if
-
-           case('sf_anthro_ignitions_def')
+               
+            case('sf_anthro_ignitions_def')
                hlm_sf_anthro_ignitions_def = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
                end if
-
+               
                
             case('use_fixed_biogeog')
-                hlm_use_fixed_biogeog = ival
+               hlm_use_fixed_biogeog = ival
                if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
-            
+               
             case('use_nocomp')
-                hlm_use_nocomp = ival
+               hlm_use_nocomp = ival
                if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
                end if
-
+               
             case('use_bigleaf')
-                hlm_use_bigleaf = ival
+               hlm_use_bigleaf = ival
                if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_bigleaf= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_use_bigleaf= ',ival,' to FATES'
                end if
-
+               
             case('use_sp')
-            hlm_use_sp = ival
-            if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
-            end if
-
+               hlm_use_sp = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+               end if
+               
             case('use_planthydro')
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
-
+               
             case('use_lu_harvest')
                hlm_use_lu_harvest = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_lu_harvest= ',ival,' to FATES'
                end if
-
+               
             case('num_lu_harvest_cats')
                hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
                end if
-
+               
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
-
+               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_logging= ',ival,' to FATES'
                end if
-
+               
             case('use_ed_st3')
                hlm_use_ed_st3 = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_ed_st3= ',ival,' to FATES'
                end if
-
+               
             case('use_ed_prescribed_phys')
                hlm_use_ed_prescribed_phys = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_ed_prescribed_phys= ',ival,' to FATES'
                end if
-
+               
             case('use_inventory_init')
                hlm_use_inventory_init = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
-
+               
             case default
                if (fates_global_verbose()) then
-                   write(fates_log(), *) 'tag not recognized:',trim(tag)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                  write(fates_log(), *) 'tag not recognized:',trim(tag)
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
                ! end_run
             end select

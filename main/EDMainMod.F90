@@ -143,7 +143,8 @@ contains
     type(bc_out_type)       , intent(inout)          :: bc_out
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type)  , pointer :: currentPatch
+    type(ed_cohort_type) , pointer :: currentCohort
     integer :: el              ! Loop counter for elements
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
     real(r8) :: dbh_new, n_new, agb_struct ! temp vars for big-leaf mode
@@ -301,13 +302,13 @@ contains
        do while(associated(currentPatch))
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
-             agb_struct = ccohort%prt%GetState(struct_organ, carbon12_element) * &
+             agb_struct = currentCohort%prt%GetState(struct_organ, carbon12_element) * &
                   prt_params%allom_agb_frac(currentCohort%pft)
              call update_bigleaf_cohort_diameter_population(agb_struct, currentPatch%area, &
                   currentCohort%pft, currentCohort%n, currentCohort%dbh, n_new, dbh_new)
              ! update the size and number density of the cohort
-             ccohort%n = n_new
-             ccohort%bdh = dbh_new
+             currentCohort%n = n_new
+             currentCohort%dbh = dbh_new
              currentCohort => currentCohort%taller
           end do
           currentPatch => currentPatch%older
