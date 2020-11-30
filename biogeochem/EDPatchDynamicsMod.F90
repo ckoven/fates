@@ -1996,6 +1996,7 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
+    allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
 
     ! Litter
@@ -2164,6 +2165,7 @@ contains
     currentPatch%zstar                      = 0.0_r8
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
+    currentPatch%fragmentation_scaler(:)    = 0.0_r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
@@ -2828,6 +2830,7 @@ contains
        deallocate(cpatch%fabi)
        deallocate(cpatch%sabs_dir)
        deallocate(cpatch%sabs_dif)
+       deallocate(cpatch%fragmentation_scaler)
       
     end if
 
