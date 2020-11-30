@@ -2466,21 +2466,21 @@ contains
 
     ! figure out the b1,b2 values from a allometry
 
-    associate( p1           => EDPftvarcon_inst%allom_agb1(ipft), &
-               p2           => EDPftvarcon_inst%allom_agb2(ipft), &
-               p3           => EDPftvarcon_inst%allom_agb3(ipft), &
-               p4           => EDPftvarcon_inst%allom_agb4(ipft), &
-               wood_density => EDPftvarcon_inst%wood_density(ipft), &
-               c2b          => EDPftvarcon_inst%c2b(ipft), &
-               allom_amode  => EDPftvarcon_inst%allom_amode(ipft), &
-               dbh_maxh     => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
-               allom_lmode  => EDPftvarcon_inst%allom_lmode(ipft),  &
-               d2bl_p2      => EDPftvarcon_inst%allom_d2bl2(ipft),  &
-               d2bl_ediff   => EDPftvarcon_inst%allom_blca_expnt_diff(ipft), &
-               d2ca_min     => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
-               d2ca_max     => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
+    associate( p1           => prt_params%allom_agb1(ipft), &
+               p2           => prt_params%allom_agb2(ipft), &
+               p3           => prt_params%allom_agb3(ipft), &
+               p4           => prt_params%allom_agb4(ipft), &
+               wood_density => prt_params%wood_density(ipft), &
+               c2b          => prt_params%c2b(ipft), &
+               allom_amode  => prt_params%allom_amode(ipft), &
+               dbh_maxh     => prt_params%allom_dbh_maxheight(ipft), &
+               allom_lmode  => prt_params%allom_lmode(ipft),  &
+               d2bl_p2      => prt_params%allom_d2bl2(ipft),  &
+               d2bl_ediff   => prt_params%allom_blca_expnt_diff(ipft), &
+               d2ca_min     => prt_params%allom_d2ca_coefficient_min(ipft), &
+               d2ca_max     => prt_params%allom_d2ca_coefficient_max(ipft))
 
-      c2 = d2bl_p2 + allom_blca_expnt_diff
+      c2 = d2bl_p2 + d2bl_ediff
       c1 = d2ca_min  !! this assumes that site%spread term is set to 0., which should be the case in bigleaf mode
 
       select case(int(allom_amode))
@@ -2513,6 +2513,9 @@ contains
       n_out = (agb_struct/b1 * (area/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
 
       dbh_out = (area / ( n_out * c1 )) ** ( 1._r8 / c2 )
+
+    end associate
+    return
 
   end subroutine update_bigleaf_cohort_diameter_population
 
