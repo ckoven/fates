@@ -753,6 +753,13 @@ contains
                 ! recalculate the crown area
                 call carea_allom(temp_cohort%dbh,temp_cohort%n,site_in%spread,&
                      temp_cohort%pft,temp_cohort%c_area,.false.)
+
+                if ( abs(temp_cohort%c_area - patch_in%area) .gt. 1.e-9) then
+                   write(fates_log(),*) 'error in setting crown area to close'
+                   write(fates_log(),*) 'temp_cohort%c_area, patch_in%area, diff', temp_cohort%c_area, patch_in%area, temp_cohort%c_area- patch_in%area
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                endif
+                
              end if
 
              ! Calculate total above-ground biomass from allometry

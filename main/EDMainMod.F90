@@ -303,7 +303,7 @@ contains
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
              agb_struct = currentCohort%prt%GetState(struct_organ, carbon12_element) * &
-                  prt_params%allom_agb_frac(currentCohort%pft)
+                  prt_params%allom_agb_frac(currentCohort%pft) * currentCohort%n
              call update_bigleaf_cohort_diameter_population(agb_struct, currentPatch%area, &
                   currentCohort%pft, currentCohort%n, currentCohort%dbh, n_new, dbh_new)
              ! update the size and number density of the cohort
@@ -692,7 +692,7 @@ contains
 
     call TotalBalanceCheck(currentSite,6)
 
-    if(hlm_use_sp.eq.ifalse)then
+    if(.not. (hlm_use_sp.eq.itrue .or. hlm_use_bigleaf.eq.itrue))then
        call canopy_structure(currentSite, bc_in)
     endif
 

@@ -92,6 +92,8 @@ module FatesAllometryMod
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : fates_tiny
+  use FatesConstantsMod, only : fates_huge
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -2513,6 +2515,18 @@ contains
       n_out = (agb_struct/b1 * (area/c1) ** (-b2/c2)) ** (1._r8 / (1._r8 - b2/c2))
 
       dbh_out = (area / ( n_out * c1 )) ** ( 1._r8 / c2 )
+
+      if ( n_out .lt. fates_tiny .or. n_out .gt. fates_huge ) then
+         write(fates_log(),*) 'n_out out of bounds:', n_out
+         write(fates_log(),*) 'Aborting'
+         write(fates_log(),*) 'agb_struct', agb_struct
+         write(fates_log(),*) 'area', area
+         write(fates_log(),*) 'ipft', ipft
+         write(fates_log(),*) 'n_in, bdh_in', n_in, dbh_in
+         write(fates_log(),*) 'b1, b2:', b1, b2
+         write(fates_log(),*) 'c1, c2:', c1, c2
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
 
     end associate
     return
