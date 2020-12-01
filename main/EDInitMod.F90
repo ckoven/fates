@@ -61,6 +61,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
+  use FatesAllometryMod         , only : carea_allom
 
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
@@ -739,6 +740,20 @@ contains
                 ! (calculates a maximum first, then applies canopy trim)                                   
                 call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_leaf)
              end if  ! sp mode
+
+             ! for big-leaf mode, change the cohort population number so that it exactly covers the
+             ! entire patch area
+             if (hlm_use_bigleaf .eq. itrue) then
+                call carea_allom(temp_cohort%dbh,temp_cohort%n,site_in%spread,&
+                     temp_cohort%pft,temp_cohort%c_area,.false.)
+
+                ! change the population number
+                temp_cohort%n = temp_cohort%n * patch_in%area / temp_cohort%c_area
+                
+                ! recalculate the crown area
+                call carea_allom(temp_cohort%dbh,temp_cohort%n,site_in%spread,&
+                     temp_cohort%pft,temp_cohort%c_area,.false.)
+             end if
 
              ! Calculate total above-ground biomass from allometry
              call bagw_allom(temp_cohort%dbh,pft,c_agw)
