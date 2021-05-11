@@ -510,6 +510,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafarea_si_pft
   integer :: ih_gpp_si_pft
   integer :: ih_npp_si_pft
+  integer :: ih_btran_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -1803,7 +1804,7 @@ end subroutine flush_hvars
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
-               hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, & 
+               hio_area_trees_si       => this%hvars(ih_area_trees_si)%r81d, & 
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
@@ -1814,11 +1815,12 @@ end subroutine flush_hvars
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_leafarea_si_pft     => this%hvars(ih_leafarea_si_pft)%r82d, &
-               hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
-               hio_npp_si_pft  => this%hvars(ih_npp_si_pft)%r82d, &
+               hio_gpp_si_pft          => this%hvars(ih_gpp_si_pft)%r82d, &
+               hio_npp_si_pft          => this%hvars(ih_npp_si_pft)%r82d, &
+               hio_btran_si_pft        => this%hvars(ih_btran_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
-               hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
-               hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
+               hio_fire_nignitions_si  => this%hvars(ih_fire_nignitions_si)%r81d, &
+               hio_fire_fdi_si         => this%hvars(ih_fire_fdi_si)%r81d, &
                hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
                hio_fire_ros_area_product_si=> this%hvars(ih_fire_ros_area_product_si)%r81d, &
                hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
@@ -2227,6 +2229,11 @@ end subroutine flush_hvars
 
             hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
             
+            do i_pft = 1,numpft
+               hio_btran_si_pft(io_si,i_pft) = hio_btran_si_pft(io_si,i_pft) + &
+                    cpatch%btran_ft(i_pft) * cpatch%area * AREA_INV
+            end do
+
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -4332,6 +4339,11 @@ end subroutine update_history_hifrq
          long='total PFT-level NPP', use_default='active',     &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_npp_si_pft )
+         
+    call this%set_history_var(vname='PFTbtran',  units='1',            &
+         long='total PFT-level BTRAN', use_default='active',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_btran_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
