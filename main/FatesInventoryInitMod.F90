@@ -63,6 +63,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : SetState
    use FatesConstantsMod, only : primaryforest
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesConstantsMod,      only : fates_unset_int
    use PRTGenericMod,    only : StorageNutrientTarget
    
    implicit none
@@ -278,7 +279,7 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8 
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest )
+            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest, fates_unset_int )
 
 
             if( inv_format_list(invsite) == 1 ) then
@@ -1166,7 +1167,7 @@ contains
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
-              cstatus, rstatus, temp_cohort%canopy_trim, &
+              cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort

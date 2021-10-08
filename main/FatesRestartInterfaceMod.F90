@@ -7,7 +7,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : fates_long_string_length
   use FatesConstantsMod,       only : itrue
   use FatesConstantsMod,       only : ifalse
-  use FatesConstantsMod,       only : fates_unset_r8
+  use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryforest
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
@@ -18,6 +18,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_in_type 
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,       only : hlm_use_sp
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
@@ -35,6 +36,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
+  use EDTypesMod,              only : nfsc
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -115,6 +117,10 @@ module FatesRestartInterfaceMod
   integer :: ir_frmort_co
   integer :: ir_smort_co
   integer :: ir_asmort_co
+  integer :: ir_c_area_co
+  integer :: ir_treelai_co
+  integer :: ir_treesai_co
+  integer :: ir_canopy_layer_tlai_pa
 
   integer :: ir_daily_nh4_uptake_co
   integer :: ir_daily_no3_uptake_co
@@ -164,6 +170,7 @@ module FatesRestartInterfaceMod
   integer :: ir_area_pa
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
+  integer :: ir_nocomp_pft_label_pa
 
   ! Litter Fluxes (needed to restart
   ! with nutrient dynamics on, restarting
@@ -173,6 +180,8 @@ module FatesRestartInterfaceMod
   integer :: ir_lfines_frag_litt
   integer :: ir_rfines_frag_litt
 
+  integer :: ir_scorch_ht_pa_pft
+  integer :: ir_litter_moisture_pa_nfsc
 
   ! Site level
   integer :: ir_watermem_siwm
@@ -913,10 +922,21 @@ contains
          long_name='Disturbance label of patch', units='yr', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_patchdistturbcat_pa )
 
+    call this%set_restart_var(vname='fates_nocomp_pft_label', vtype=cohort_int, &
+         long_name='PFT label of patch in nocomp mode', units='none', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nocomp_pft_label_pa )
+
     call this%set_restart_var(vname='fates_area', vtype=cohort_r8, &
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
+    call this%set_restart_var(vname='fates_scorch_ht_pa_pft', vtype=cohort_r8, &
+         long_name='scorch height', units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_scorch_ht_pa_pft)
+
+    call this%set_restart_var(vname='fates_litter_moisture_pa_nfsc', vtype=cohort_r8, &
+         long_name='scorch height', units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
 
     ! Site Level Diagnostics over multiple nutrients
 
@@ -1031,6 +1051,27 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
     
     
+    ! Only register satellite phenology related restart variables if it is turned on!
+
+    if(hlm_use_sp .eq. itrue) then
+         call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
+             long_name='area of the fates cohort', &
+             units='m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+         call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
+             long_name='leaf area index of fates cohort', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+         call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
+             long_name='stem area index of fates cohort', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+         call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
+             long_name='total patch level leaf area index of each fates canopy layer', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
+    end if
+
 
     ! Only register hydraulics restart variables if it is turned on!
     
@@ -1637,6 +1678,7 @@ contains
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
    use EDTypesMod, only : maxSWb
+   use EDTypesMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
 
@@ -1676,7 +1718,7 @@ contains
     integer  :: io_idx_si_cwd  ! each site-cwd index
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
-
+    integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1769,6 +1811,7 @@ contains
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &           
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &           
+           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -1816,7 +1859,7 @@ contains
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
-
+          io_idx_pa_ncl   = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2005,6 +2048,12 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
                 
+                if (hlm_use_sp .eq. itrue) then
+                    this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                    this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
+                    this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
+                end if
+
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
@@ -2025,6 +2074,7 @@ contains
              rio_age_pa(io_idx_co_1st)         = cpatch%age
              rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
+             rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
 
              ! Patch level running means
@@ -2046,6 +2096,18 @@ contains
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
              endif
+
+             io_idx_pa_pft  = io_idx_co_1st
+             do i = 1,numpft
+                this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft) = cpatch%scorch_ht(i)
+                io_idx_pa_pft      = io_idx_pa_pft + 1
+             end do
+
+             io_idx_pa_cwd  = io_idx_co_1st
+             do i = 1,nfsc
+                this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%litter_moisture(i)
+                io_idx_pa_cwd      = io_idx_pa_cwd + 1
+             end do
 
              ! --------------------------------------------------------------------------
              ! Send litter to the restart arrays
@@ -2103,6 +2165,13 @@ contains
                 io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
+             if (hlm_use_sp .eq. itrue) then
+               do i = 1,nclmax
+                 this%rvars(ir_canopy_layer_tlai_pa)%r81d(io_idx_pa_ncl) = cpatch%canopy_layer_tlai(i)
+                 io_idx_pa_ncl = io_idx_pa_ncl + 1
+               end do
+             end if
+
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
              io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
@@ -2112,6 +2181,7 @@ contains
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
+             io_idx_pa_ncl  = io_idx_co_1st
              
              if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
@@ -2269,7 +2339,7 @@ contains
      integer                           :: ft
      integer                           :: el            ! element loop counter
      integer, parameter                :: recruitstatus = 0
-
+     integer                           ::  nocomp_pft ! PFT patch label for nocomp mode
      ! ----------------------------------------------------------------------------------
      ! We really only need the counts for the number of patches per site
      ! and the number of cohorts per patch. These values tell us how much
@@ -2306,9 +2376,10 @@ contains
              
              ! create patch
              allocate(newp)    
-             
+             nocomp_pft = fates_unset_int
+             ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest )
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2432,6 +2503,7 @@ contains
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : maxSWb
+     use EDTypesMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -2480,6 +2552,7 @@ contains
      integer  :: io_idx_si_capf ! each cohort age class x pft index within site
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
+     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2564,6 +2637,7 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
+          rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -2600,6 +2674,7 @@ contains
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
+          io_idx_pa_ncl = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2786,6 +2861,12 @@ contains
                 end if
 
                 call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+
+                if (hlm_use_sp .eq. itrue) then
+                    ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
+                    ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
+                    ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
+                end if
                 
                 io_idx_co = io_idx_co + 1
              
@@ -2806,6 +2887,7 @@ contains
              cpatch%age                = rio_age_pa(io_idx_co_1st)
              cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
              cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
+             cpatch%nocomp_pft_label               = rio_nocomp_pft_label_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
 
@@ -2824,6 +2906,18 @@ contains
                      ,io_idx_co,cohortsperpatch
              endif
              
+             io_idx_pa_pft  = io_idx_co_1st
+             do i = 1,numpft
+                cpatch%scorch_ht(i) = this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft)
+                io_idx_pa_pft      = io_idx_pa_pft + 1
+             end do
+
+             io_idx_pa_cwd  = io_idx_co_1st
+             do i = 1,nfsc
+                cpatch%litter_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
+                io_idx_pa_cwd      = io_idx_pa_cwd + 1
+             end do
+
              ! --------------------------------------------------------------------------
              ! Pull litter from the restart arrays
              ! Each element has its own variable, so we have to make sure 
@@ -2881,6 +2975,13 @@ contains
                 io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
+             if (hlm_use_sp .eq. itrue) then
+               do i = 1,nclmax
+                 cpatch%canopy_layer_tlai(i) = this%rvars(ir_canopy_layer_tlai_pa)%r81d(io_idx_pa_ncl)
+                 io_idx_pa_ncl = io_idx_pa_ncl + 1
+               end do
+             end if
+
              ! Now increment the position of the first cohort to that of the next
              ! patch
              
@@ -2891,6 +2992,7 @@ contains
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
+             io_idx_pa_ncl  = io_idx_co_1st
              
              if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
@@ -3098,8 +3200,6 @@ contains
               endif ! is there vegetation? 
               
            end if    ! if the vegetation and zenith filter is active
-     
-
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites
