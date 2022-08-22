@@ -2072,6 +2072,7 @@ end subroutine flush_hvars
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
@@ -2122,8 +2123,17 @@ end subroutine flush_hvars
       hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
       hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
 
-      ! Growing degree-days
-      hio_gdd_si(io_si) = sites(s)%grow_deg_days
+            
+      hio_gdd_si(io_si)      = sites(s)%grow_deg_days
+      hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
+      hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
+      hio_dleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%dleafoffdate,r8)
+      hio_dleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%dleafondate,r8)
+      
+      if(sites(s)%phen_model_date>numWaterMem)then
+         hio_meanliqvol_si(io_si) = &
+              sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+      end if
 
       ! Model days elapsed since leaf on/off for cold- and drought-deciduous
       hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
