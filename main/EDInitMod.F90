@@ -178,12 +178,8 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-       allocate(site_in%area_pft(0:numpft))
-    else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(1:numpft))  
-    endif
-
+    allocate(site_in%area_pft(1:numpft,1:n_landuse_cats))  
+    
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
 
@@ -321,7 +317,7 @@ contains
     ! canopy spread
     site_in%spread = 0._r8
 
-    site_in%area_pft(:) = 0._r8
+    site_in%area_pft(:,:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
 
@@ -397,7 +393,7 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
-          sites(s)%area_pft(:) = 0.0_r8
+          sites(s)%area_pft(:,:) = 0.0_r8
 
           do ft =  1,numpft
              sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
@@ -415,44 +411,45 @@ contains
 
              do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                 do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                   sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
+                   sites(s)%area_pft(fates_pft, primarylands) = sites(s)%area_pft(fates_pft, primarylands) + &
                         EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
                 end do
              end do !hlm_pft
 
              do ft =  1,numpft
-                if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                   sites(s)%area_pft(ft)=0.0_r8
+                if(sites(s)%area_pft(ft, primarylands).lt.0.01_r8.and.sites(s)%area_pft(ft, primarylands).gt.0.0_r8)then
+                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft, primarylands)
+                   sites(s)%area_pft(ft, primarylands)=0.0_r8
                    ! remove tiny patches to prevent numerical errors in terminate patches
                 endif
-                if(sites(s)%area_pft(ft).lt.0._r8)then
-                   write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
+                if(sites(s)%area_pft(ft, primarylands).lt.0._r8)then
+                   write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft, primarylands)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
-                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.
+                sites(s)%area_pft(ft, primarylands)= sites(s)%area_pft(ft, primarylands) * AREA ! rescale units to m2/ha.
              end do
 
-             ! re-normalize PFT area to ensure it sums to one.
+             ! re-normalize PFT area to ensure it sums to 1000 m2/ha.
              ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
-             ! the bare ground will no longer be proscribed and should emerge from FATES
+             ! the bare ground will no longer be prescribed and should emerge from FATES
              ! this may or may not be the right way to deal with this?
 
              if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
                 ! subsume bare ground evenly into the existing patches.
 
-                sumarea = sum(sites(s)%area_pft(1:numpft))
+                sumarea = sum(sites(s)%area_pft(1:numpft, primarylands))
                 do ft =  1,numpft
                    if(sumarea.gt.0._r8)then
-                      sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
+                      sites(s)%area_pft(ft, primarylands) = area * sites(s)%area_pft(ft, primarylands)/sumarea
                    else
-                      sites(s)%area_pft(ft) = area/numpft
+                      sites(s)%area_pft(ft, primarylands) = area/numpft
                       ! in nocomp mode where there is only bare ground, we assign equal area to
                       ! all pfts and let the model figure out whether land should be bare or not.
                    end if
                 end do !ft
+
              else ! for sp and nocomp mode, assert a bare ground patch if needed
-                sumarea = sum(sites(s)%area_pft(1:numpft))
+                sumarea = sum(sites(s)%area_pft(1:numpft, primarylands))
 
                 ! In all the other FATES modes, bareground is the area in which plants
                 ! do not grow of their own accord. In SP mode we assert that the canopy is full for
@@ -465,9 +462,27 @@ contains
                 ! patch as having a PFT identifier as zero.
 
                 if(sumarea.lt.area)then !make some bare ground
-                   sites(s)%area_pft(0) = area - sumarea
+                   sites(s)%area_baregroundpft = area - sumarea
                 end if
              end if !sp mode
+
+             ! now we need to figure out the PFT area weighting on lands that are neither primarylands nor croplands
+             do i_lu = 2, n_landuse_types - 1
+                do ft = 1, numpft
+                   sites(s)%area_pft(ft,i_lu) = sites(s)%area_pft(ft,i_lu) * fates_landuse_pft_maxcancov(ft,i_lu)
+                end do
+                if (sum(sites(s)%area_pft(1:numpft,i_lu)) .gt. 0._r8) then
+                   renormalize = sum(sites(s)%area_pft(1:numpft,primarylands)) / sum(sites(s)%area_pft(1:numpft,i_lu))
+                endif
+                do ft = 1, numpft
+                   sites(s)%area_pft(ft,i_lu) = sites(s)%area_pft(ft,i_lu) * renormalize
+                end do
+             end do
+
+             ! and now for croplands, which do not make use of the bc_in(s)%pft_areafrac(hlm_pft) at all.
+             do ft = 1, numpft
+                sites(s)%area_pft(ft,i_lu) = area * fates_landuse_pft_maxcancov(ft,croplands)
+             end do
           end if !fixed biogeog
 
           do ft = 1,numpft
@@ -475,7 +490,7 @@ contains
              ! are used for nocomp with no biogeog
              sites(s)%use_this_pft(ft) = itrue
              if(hlm_use_fixed_biogeog.eq.itrue)then
-                if(sites(s)%area_pft(ft).gt.0.0_r8)then
+                if(sites(s)%area_pft(ft, primarylands).gt.0.0_r8)then
                    sites(s)%use_this_pft(ft) = itrue
                 else
                    sites(s)%use_this_pft(ft) = ifalse
@@ -622,27 +637,38 @@ contains
                 nocomp_pft = fates_unset_int
              end if
 
-             if(hlm_use_nocomp.eq.itrue)then
-                ! In no competition mode, if we are using the fixed_biogeog filter
-                ! then each PFT has the area dictated  by the surface dataset.
+             if ( nocomp_pft .ne. 0 ) then
+                end_landuse_idx = n_landuse_cats
+             else
+                end_landuse_idx = 1
+             endif
 
-                ! If we are not using fixed biogeog model, each PFT gets the same area.
-                ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
+             luh_state_loop: do i_lu_state = 1, end_landuse_idx
+                lu_state_present_if: if (( state_vector(i_lu_state) .gt. nearzero) .or.  (nocomp_pft .eq. 0)) then
+                   if(hlm_use_nocomp.eq.itrue)then
+                      ! In no competition mode, if we are using the fixed_biogeog filter
+                      ! then each PFT has the area dictated  by the surface dataset.
 
-                if(hlm_use_fixed_biogeog.eq.itrue)then
-                   newparea = sites(s)%area_pft(nocomp_pft)
-                else
-                   newparea = area / numpft
-                end if
-             else  ! The default case is initialized w/ one patch with the area of the whole site.
-                newparea = area
-             end if  !nocomp mode
+                      ! If we are not using fixed biogeog model, each PFT gets the same area.
+                      ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
 
-             luh_state_loop: do i_lu_state = 1, n_landuse_cats
-                lu_state_present_if: if ( state_vector(i_lu_state) .gt. nearzero ) then
+                      if(hlm_use_fixed_biogeog.eq.itrue)then
+                         if ( nocomp_pft .ne. 0 ) then
+                            newparea = sites(s)%area_pft(nocomp_pft, i_lu_state)
+                         else
+                            newparea = sites(s)%area_baregroundpft
+                      else
+                         newparea = area / numpft
+                      end if
+                   else  ! The default case is initialized w/ one patch with the area of the whole site.
+                      newparea = area
+                   end if  !nocomp mode
 
-                   newparea_withlanduse = newparea / state_vector(i_lu_state)
-                   ! for now, spread nocomp PFTs evenly across land use types
+                   if ( nocomp_pft .ne. 0 ) then
+                      newparea_withlanduse = newparea / state_vector(i_lu_state)
+                   else
+                      newparea_withlanduse = newparea
+                   endif
 
                    new_patch_area_gt_zero: if(newparea_withlanduse.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                       allocate(newp)
@@ -657,10 +683,12 @@ contains
                          sites(s)%youngest_patch => newp
                          sites(s)%oldest_patch   => newp
                          is_first_patch = ifalse
+                         patchno_counter = 1
                       else
-                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on.
+                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode is on and/or there are multiple land use types present.
                          ! The new patch is the 'youngest' one, arbitrarily.
-                         newp%patchno = nocomp_pft + (i_lu_state-1) * numpft
+                         patchno_counter = patchno_counter + 1
+                         newp%patchno = patchno_counter
                          newp%older     => sites(s)%youngest_patch
                          newp%younger   => null()
                          sites(s)%youngest_patch%younger => newp
