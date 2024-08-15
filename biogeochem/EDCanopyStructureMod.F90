@@ -239,7 +239,7 @@ contains
           ! We only promote if we have at least two layers
           if (z>1) then
 
-             do i_lyr=1,z-1
+             do i_lyr=z-1,1,-1
                 call PromoteIntoLayer(currentSite, currentPatch, i_lyr)
              end do
 
