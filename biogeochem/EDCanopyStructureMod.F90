@@ -270,6 +270,20 @@ contains
           enddo
 
           ! ---------------------------------------------------------------------------------------
+          ! Check to make sure that, if there is more than one canopy layer, that all layers
+          ! above the lowest layer are full.
+          ! ---------------------------------------------------------------------------------------
+          if (z > 1) then
+             do i_lyr = 1,z-1
+                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
+                if( ((currentPatch%area-arealayer(i_lyr))/currentPatch%area > area_check_rel_precision) .or. &
+                     ((currentPatch%area-arealayer(i_lyr)) > area_check_precision )  ) then
+                   area_not_balanced = .true.
+                endif
+             enddo
+          end if
+
+          ! ---------------------------------------------------------------------------------------
           ! Gracefully exit if too many iterations have gone by
           ! ---------------------------------------------------------------------------------------
 
