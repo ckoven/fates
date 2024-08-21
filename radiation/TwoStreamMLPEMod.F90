@@ -371,8 +371,8 @@ contains
 
       if(debug)then
          ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
-         ! if(r_diff_dn /= r_diff_dn) then
-         if(shr_infnan_isnan(r_diff_dn)) then
+         ! if(shr_infnan_isnan(r_diff_dn)) then
+         if(r_diff_dn /= r_diff_dn) then
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
