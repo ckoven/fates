@@ -1568,6 +1568,15 @@ contains
                 scelbp => this%band(ib)%scelb(ican,icol)
                 scelbp%lambda1_diff = taulamb(k1)
                 scelbp%lambda2_diff = taulamb(k2)
+
+                !check for errors 
+                if ( scelbp%lambda1_diff .ne. scelbp%lambda1_diff) then
+                   write(log_unit,*)scelbp%lambda1_diff
+                   write(log_unit,*)ican, icol
+                   write(log_unit,*)ilem, k1
+                   write(log_unit,*)taulamb
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                endif
              end do
              ilem_off = ilem_off + this%n_col(ican)
           end do
