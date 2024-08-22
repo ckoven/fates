@@ -385,6 +385,25 @@ contains
             write(log_unit,*)this%band(ib)%Rdiff_atm
             write(log_unit,*)exp(-scelg%Kb*vai)
             write(log_unit,*)exp(scelb%a*vai)
+            write(log_unit,*)'ican',ican
+            write(log_unit,*)'icol',icol
+            write(log_unit,*)'ib',ib            
+            write(log_unit,*)'scelg%pft',scelg%pft
+            write(log_unit,*)'scelg%lai',scelg%lai
+            write(log_unit,*)'scelg%sai',scelg%sai            
+            write(log_unit,*) "om = " ,scelb%om
+            write(log_unit,*) "betab = ",scelb%betab
+            write(log_unit,*) "Kd = ",scelg%Kd
+            write(log_unit,*) "area = ",scelg%area
+            write(log_unit,*) "betad = ",scelb%betad
+            write(log_unit,*)  "Rbeam0 = ", scelb%Rbeam0
+            write(log_unit,*)  "b2 = ", -(scelg%Kd*(1._r8-scelb%om)*(1._r8-2._r8*scelb%betab)+scelg%Kb) * &
+                 scelb%om*scelg%Kb*scelb%Rbeam0
+            write(log_unit,*)  "b1 = ",  -(scelg%Kd*(1._r8-scelb%om+2._r8*scelb%om*scelb%betad) + &
+                 (1._r8-2._r8*scelb%betab)*scelg%Kb) * &
+                 scelb%om*scelg%Kb*scelb%Rbeam0
+            write(log_unit,*) "ncols = ",this%n_col(:)
+            write(log_unit,*) "cosz = ",this%cosz
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end if
