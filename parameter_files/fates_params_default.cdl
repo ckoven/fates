@@ -1523,8 +1523,8 @@ data:
  fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_recruit_seed_supplement = 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 
-    0.75, 0.75, 0.75, 0.75, 0.75 ;
+ fates_recruit_seed_supplement = 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 
+    0.00, 0.00, 0.00, 0.00, 0.00 ;
 
  fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
