@@ -517,7 +517,7 @@ contains
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
     type (bc_in_type), intent(in)      :: bc_in
-    type (bc_out_type), intent(in)     :: bc_out
+    type (bc_out_type), intent(inout)  :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
@@ -773,7 +773,7 @@ contains
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, bc_out)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -1090,7 +1090,7 @@ contains
                                           leaf_burn_frac * leaf_m * nc%n
 
                                      bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
-                                          leaf_burn_frac * leaf_m * nc%n
+                                          leaf_burn_frac * leaf_m * nc%n * ha_per_m2 * days_per_sec
                                   end do
 
                                   ! Here the mass is removed from the plant
@@ -1458,7 +1458,7 @@ contains
 
                          allocate(temp_patch)
 
-                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area)
+                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area, bc_out)
                          !
                          temp_patch%nocomp_pft_label = 0
 
@@ -1561,7 +1561,7 @@ contains
                                ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                allocate(temp_patch)
 
-                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
+                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area, bc_out)
 
                                ! give the new patch the intended nocomp PFT label
                                temp_patch%nocomp_pft_label = i_pft
@@ -1670,7 +1670,7 @@ contains
 
   ! -----------------------------------------------------------------------------------------
 
-  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove)
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove, bc_out)
     !
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
@@ -1681,6 +1681,7 @@ contains
     type(fates_patch_type) , intent(inout), pointer :: new_patch         ! New Patch
     real(r8), intent(in)                            :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     real(r8), intent(in), optional                  :: area_to_remove     ! area of currentPatch to remove, the rest goes to newpatch
+    type(bc_out_type)   , intent(inout)             :: bc_out
     !
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
@@ -1721,7 +1722,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, bc_out)
 
     currentPatch%burnt_frac_litter(:) = 0._r8
 
@@ -1919,7 +1920,7 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis)
+                                 patch_site_areadis, bc_out)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1968,7 +1969,7 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
-
+    type(bc_out_type)   , intent(inout)         :: bc_out
     
     ! locals
     type(site_massbal_type), pointer :: site_mass
@@ -2088,7 +2089,7 @@ contains
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-          bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+          bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
           ! Transfer below ground CWD (none burns)
           
@@ -2114,7 +2115,7 @@ contains
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-           bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+           bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
@@ -2185,7 +2186,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
-    type(bc_out_type)   , intent(in)            :: bc_out
+    type(bc_out_type)   , intent(inout)         :: bc_out
     
     !
     ! !LOCAL VARIABLES:
@@ -2327,7 +2328,7 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2390,7 +2391,7 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                      bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+                      bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2658,7 +2659,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
-    type(bc_out_type)      , intent(in)            :: bc_out
+    type(bc_out_type)      , intent(inout)         :: bc_out
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
 
     !
@@ -2803,7 +2804,7 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2864,7 +2865,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2878,7 +2879,7 @@ contains
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
