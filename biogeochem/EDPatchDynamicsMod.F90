@@ -48,6 +48,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : bc_out_type
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -489,7 +490,7 @@ contains
 
     ! ============================================================================
 
-  subroutine spawn_patches( currentSite, bc_in)
+  subroutine spawn_patches( currentSite, bc_in, bc_out)
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens,
@@ -516,6 +517,7 @@ contains
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
     type (bc_in_type), intent(in)      :: bc_in
+    type (bc_out_type), intent(in)     :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
@@ -786,13 +788,13 @@ contains
                                end if
                             case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in)
+                                    newPatch, patch_site_areadis,bc_in, bc_out)
                             case (dtype_ifall)
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in, &
+                                    newPatch, patch_site_areadis,bc_in, bc_out, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
@@ -1085,6 +1087,9 @@ contains
 
                                      currentSite%mass_balance(el)%burn_flux_to_atm = &
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
+                                          leaf_burn_frac * leaf_m * nc%n
+
+                                     bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
                                           leaf_burn_frac * leaf_m * nc%n
                                   end do
 
@@ -2082,7 +2087,9 @@ contains
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
+
+          bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+
           ! Transfer below ground CWD (none burns)
           
           do sl = 1,currentSite%nlevsoil
@@ -2106,7 +2113,9 @@ contains
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-           
+
+           bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis             
@@ -2156,7 +2165,7 @@ contains
   ! ============================================================================
 
   subroutine fire_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in)
+       newPatch, patch_site_areadis, bc_in, bc_out)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -2176,6 +2185,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
+    type(bc_out_type)   , intent(in)            :: bc_out
     
     !
     ! !LOCAL VARIABLES:
@@ -2317,6 +2327,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
+             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2378,6 +2390,7 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2628,7 +2641,7 @@ contains
     ! ============================================================================
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, &
+       newPatch, patch_site_areadis, bc_in, bc_out, &
        clearing_matrix_element)
     !
     ! !DESCRIPTION:
@@ -2645,6 +2658,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
+    type(bc_out_type)      , intent(in)            :: bc_out
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
 
     !
@@ -2789,6 +2803,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
+             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
+
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2848,6 +2864,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2860,6 +2877,8 @@ contains
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+
+                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass
 
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
