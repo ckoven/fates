@@ -38,7 +38,9 @@ module FatesConstantsMod
   real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
 
-
+  
+  real(fates_r8), parameter, public :: min_vai_bin_sum = 5.0_fates_r8   ! The sum of vai increments used to discretize the canopy vertically                                                                                                                           ! must be larger than this number. 
+  
   integer , parameter, public :: N_DIST_TYPES = 4          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging, 4) land-use change
   integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
@@ -134,12 +136,17 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
                                                             ! secondary 1900s land in hurtt-2011
 
   ! integer labels for specifying harvest units
-  integer, parameter, public :: photosynth_acclim_model_none = 1
-  integer, parameter, public :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
+  integer, parameter, public :: photosynth_acclim_model_none = 0
+  integer, parameter, public :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
 
   ! integer labels for specifying harvest units
   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted.
+
+  ! integer labels for specifying harvest debt status
+  integer, parameter, public :: fates_no_harvest_debt = 0
+  integer, parameter, public :: fates_with_harvest_debt = 1
+  integer, parameter, public :: fates_bypass_harvest_debt = 2  ! Do not calculate harvest debt for area based harvest
 
   ! integer labels for specifying leaf maintenance respiration models
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
@@ -238,6 +245,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion factor: m2 per km2
   real(fates_r8), parameter, public :: m2_per_km2 = 1.0e6_fates_r8
+  
+  ! Conversion factor: m per km
+  real(fates_r8), parameter, public :: m_per_km = 1000.0_fates_r8
 
   ! Conversion factor: cm2 per m2
   real(fates_r8), parameter, public :: cm2_per_m2 = 10000.0_fates_r8
@@ -255,6 +265,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion: seconds per minute
   real(fates_r8), parameter, public :: sec_per_min = 60.0_fates_r8
+  
+  ! Conversion: minutes per hour
+  real(fates_r8), parameter, public :: min_per_hr = 60.0_fates_r8
 
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8

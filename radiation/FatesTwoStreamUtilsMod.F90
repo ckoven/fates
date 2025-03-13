@@ -17,6 +17,7 @@ Module FatesTwoStreamUtilsMod
   use FatesRadiationMemMod  , only : num_swb
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
+  use TwoStreamMLPEMod      , only : normalized_upper_boundary
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
   use FatesCohortMod        , only : fates_cohort_type
   use FatesPatchMod         , only : fates_patch_type
@@ -28,6 +29,7 @@ Module FatesTwoStreamUtilsMod
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : VegAreaLayer
+  use EDParamsMod           , only : maxpatch_total
   
   implicit none
 
@@ -44,12 +46,11 @@ Module FatesTwoStreamUtilsMod
 contains
 
 
-  subroutine FatesConstructRadElements(site,fcansno_pa)
+  subroutine FatesConstructRadElements(site)
 
     type(ed_site_type)  :: site
+
     type(fates_patch_type),pointer :: patch
-    real(r8)                    :: fcansno_pa(:)
-    
     type(fates_cohort_type), pointer :: cohort
     integer :: n_col(nclmax) ! Number of parallel column elements per layer
     integer :: ican,ft,icol
@@ -62,8 +63,9 @@ contains
     real(r8), parameter :: canopy_open_frac = 0.00_r8
 
     integer :: maxcol
-    real(r8) :: canopy_frac(5)
+    real(r8) :: canopy_frac(nclmax)
     integer  :: ifp
+    integer  :: ib
     ! Area indices for the cohort [m2 media / m2 crown footprint]
     real(r8) :: elai_cohort,tlai_cohort,esai_cohort,tsai_cohort
     real(r8) :: vai_top,vai_bot  ! veg area index at top and bottom of cohort (dummy vars)
@@ -77,6 +79,20 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
+
+    integer  :: icolmax         ! Column index for each layer with largest area footprint
+    real(r8) :: areamax         ! The area footprint of the largest column
+    
+    ! its possible that there is more horizontal area taken up by the cohorts
+    ! than there is ground, which is simply a result numerical and algorithmic
+    ! imprecision in the rest of FATES. If this is true, then we need
+    ! to somehow force the total area of our scattering elements to be exactly
+    ! 1 and not slightly more. One way is to just chop off some area of the
+    ! largest scattering element (simple way), the other is to chop off that
+    ! area but also increase the LAI+SAI. The latter is conservative, but
+    ! could create indexing problems when transfering fluxes back into FATES arrays
+    
+    logical, parameter :: do_simple_area_correct = .true.
     
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
@@ -86,17 +102,17 @@ contains
     !real(r8), parameter :: init_max_vai_diff_per_elem = 0.2_r8
     !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
-    
-    !RGK-2SBF  write(fates_log(),*)'creating: ',site%lat,site%lon
-
     max_elements = -1
-    ifp=0
+
+    ifp = 0
     patch => site%oldest_patch
     do while (associated(patch))
 
        if_notbareground: if(patch%nocomp_pft_label.ne.nocomp_bareground)then
-       
-       ifp=ifp+1
+
+       ifp = ifp + 1
+          
+       !ifp = patch%patchno
        associate(twostr => patch%twostr)
 
          
@@ -125,6 +141,13 @@ contains
          ! an air element is needed for all the non
          ! occupied space, even if the canopy_open_frac
          ! is zero.
+         ! If the area of the elements does not match
+         ! the area of the canopy space within 1.e-7_r8
+         ! then we either add the space in the form of air
+         ! or we compress the space by literally squeezing
+         ! the elements (which consequently increases their
+         ! LAI and SAI to conserve area)
+        
             
          if(patch%total_canopy_area>nearzero)then
             canopy_frac(:) = 0._r8
@@ -137,7 +160,8 @@ contains
          else
             canopy_frac(:) = 0._r8
          end if
-         
+
+         ! Add the air element if the canopy area is not filled
          do ican = 1,patch%ncl_p
             if( (1._r8-canopy_frac(ican))>area_err_thresh ) then
                n_col(ican) = n_col(ican) + 1
@@ -220,21 +244,23 @@ contains
             ! Cohort needs to know which column its in
             cohort%twostr_col = n_col(ican)
 
-            if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
-               ! cdk error here.
-               write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area. should be less than 1'
-               write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
-               write(fates_log(),*) cohort%c_area, patch%total_canopy_area
-               call patch%Dump()
-               cohort => patch%tallest
-               do while (associated(cohort))
-                  write(fates_log(),*) ' ------- dumping cohort ------'
-                  call cohort%Dump()
-                  write(fates_log(),*) ''
-                  cohort => cohort%shorter
-               enddo
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            endif
+            if (debug) then
+               if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
+                  write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area.'
+                  write(fates_log(),*) 'should be less than 1'
+                  write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
+                  write(fates_log(),*) cohort%c_area, patch%total_canopy_area
+                  call patch%Dump()
+                  cohort => patch%tallest
+                  do while (associated(cohort))
+                     write(fates_log(),*) ' ------- dumping cohort ------'
+                     call cohort%Dump()
+                     write(fates_log(),*) ''
+                     cohort => cohort%shorter
+                  enddo
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               endif
+            end if
 
             cohort => cohort%shorter
          enddo
@@ -251,21 +277,57 @@ contains
                twostr%scelg(ican,n_col(ican))%sai  = 0._r8
             end if
 
+            ! Check to see if any of these layers are extremely over-full and stop the
+            ! model if so. This should not happen and would most likely be an issue
+            ! with the canopy ppa promotion/demotion logic
+            ! This is more of a sanity check, so we use a 1% threshold
+            if(debug)then
+               if_very_overfull: if( (canopy_frac(ican)-1._r8)>0.01_r8 ) then
+                  write(fates_log(),*) 'One of the fates canopy layers takes up'
+                  write(fates_log(),*) 'more than 100% of the area footprint, exceeding a'
+                  write(fates_log(),*) 'precision threshold of 0.01'
+                  write(fates_log(),*) 'Aborting'
+                  write(fates_log(),*) 'canopy layer: ',ican,' canopy_frac:',canopy_frac(ican)
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if if_very_overfull
+            end if
             ! If the layer is overfull, remove some from area from
-            ! the first element that is 10x larger than the threshold
+            ! the element with the largest footprint
 
             if_overfull: if( (canopy_frac(ican)-1._r8)>area_err_thresh ) then
+
+               ! First find the element with the largest footprint
+               icolmax = -1
+               areamax = 0
                do icol = 1,n_col(ican)
-                  if(twostr%scelg(ican,icol)%area > 10._r8*(canopy_frac(ican)-1._r8))then
-                      area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
-                     twostr%scelg(ican,icol)%area = twostr%scelg(ican,icol)%area * area_ratio
-                     twostr%scelg(ican,icol)%lai  = twostr%scelg(ican,icol)%lai / area_ratio
-                     twostr%scelg(ican,icol)%sai  = twostr%scelg(ican,icol)%sai / area_ratio
-                     canopy_frac(ican) = 1.0_r8
-                     exit if_overfull
+                  if(twostr%scelg(ican,icol)%area>areamax) then
+                     icolmax = icol
+                     areamax = twostr%scelg(ican,icol)%area
                   end if
                end do
-               
+
+               ! Test out a simpler way to correct area errors
+               if(do_simple_area_correct) then
+                  if(debug) then
+                     if((canopy_frac(ican)-1._r8)>0.5_r8*twostr%scelg(ican,icolmax)%area)then
+                        write(fates_log(),*) 'An area correction is being applied where '
+                        write(fates_log(),*) 'the correction is greater than 50% of the area of the largest donor.'
+                        write(fates_log(),*) 'This will have to large of an impact on the donor and is not representative'
+                        write(fates_log(),*) 'of the actual composition of the canopy'
+                        write(fates_log(),*) 'Aborting'
+                        write(fates_log(),*) 'canopy layer: ',ican,' canopy_frac:',canopy_frac(ican)
+                        write(fates_log(),*) 'existing donor area',twostr%scelg(ican,icolmax)%area
+                        call endrun(msg=errMsg(sourcefile, __LINE__))
+                     end if
+                  end if
+                  twostr%scelg(ican,icolmax)%area = twostr%scelg(ican,icolmax)%area - (canopy_frac(ican)-1._r8)
+               else
+                  area_ratio = (twostr%scelg(ican,icolmax)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icolmax)%area
+                  twostr%scelg(ican,icolmax)%area = twostr%scelg(ican,icolmax)%area * area_ratio
+                  twostr%scelg(ican,icolmax)%lai  = twostr%scelg(ican,icolmax)%lai / area_ratio
+                  twostr%scelg(ican,icolmax)%sai  = twostr%scelg(ican,icolmax)%sai / area_ratio
+               end if
+
             end if if_overfull
 
          end do
@@ -282,16 +344,10 @@ contains
          max_elements = max(max_elements,twostr%n_scel)
          
          twostr%force_prep = .true.   ! This signals that two-stream scattering coefficients
-
-         !RGK-2SBFwrite(fates_log(),*)'creating patch: ',fcansno_pa(ifp),patch%fcansno
-         
-         ! that are dependent on geometry need to be updated
-         call twostr%CanopyPrep(fcansno_pa(ifp))
-         call twostr%ZenithPrep(max(0.001,site%coszen))
          
        end associate
 
-    end if if_notbareground
+       end if if_notbareground
        
        patch => patch%younger
     end do
@@ -300,7 +356,7 @@ contains
     ! The scratch space needs to be 2x the number of computational elements
     ! for the patch with the most elements.
     
-    if(allocated(site%taulambda_2str)) then ! .and. max_elements>0 )then
+    if(allocated(site%taulambda_2str)) then
        n_scr = ubound(site%taulambda_2str,dim=1)
        allocate_scratch = .false.
        if(2*max_elements > n_scr) then
@@ -322,7 +378,7 @@ contains
        allocate(site%omega_2str(n_scr,n_scr))
        allocate(site%ipiv_2str(n_scr))
     end if
-       
+    
     return
   end subroutine FatesConstructRadElements
 
@@ -350,7 +406,6 @@ contains
     laisha = 0._r8
 
     associate(twostr => patch%twostr)
-              
     
       do ican = 1,twostr%n_lyr
          do icol = 1,twostr%n_col(ican)
@@ -358,7 +413,8 @@ contains
             associate(scelg => patch%twostr%scelg(ican,icol))
             
               call twostr%GetAbsRad(ican,icol,ivis,0._r8,scelg%lai+scelg%sai, &
-                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
+                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem, &
+                   R_abs_snow,leaf_sun_frac,call_fail)
               
               if(call_fail) then
                  write(fates_log(),*) 'patch failure:',patch%patchno,' of:'
@@ -370,7 +426,6 @@ contains
                  call twostr%Dump(ivis,lat=site%lat,lon=site%lon)
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-              
               
               laisun = laisun + scelg%area*scelg%lai*leaf_sun_frac
               laisha = laisha + scelg%area*scelg%lai*(1._r8-leaf_sun_frac)
@@ -456,6 +511,8 @@ contains
       if( abs(check_fab-in_fab) > in_fab*10._r8*rel_err_thresh ) then
          write(fates_log(),*)'Absorbed radiation didnt balance after cohort sum'
          write(fates_log(),*) ib,in_fab,check_fab,snow_depth
+         ! Remove the comment below for more information about the failure
+         ! We keep it commented for now because the output is significant
          !call twostr%Dump(ib,patch%site%coszen)
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if

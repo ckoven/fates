@@ -33,7 +33,7 @@ module FatesLandUseChangeMod
   public :: GetLUHStatedata
   public :: GetInitLanduseTransitionRates
   public :: GetInitLanduseHarvestRate
-  public :: fates_grazing
+  public :: FatesGrazing
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -429,7 +429,7 @@ contains
     
   !----------------------------------------------------------------------------------------------------
 
-  subroutine fates_grazing(prt, ft, land_use_label, height)
+  subroutine FatesGrazing(prt, ft, land_use_label, height)
 
     use PRTGenericMod,    only : leaf_organ
     use PRTGenericMod,    only : prt_vartypes
@@ -453,7 +453,7 @@ contains
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
     
     if ( grazing_rate .gt. 0._r8) then
-       if (prt_params%woody(ft).eq.itrue) then
+       if (prt_params%woody(ft) == itrue) then
 
           call CrownDepth(height,ft,crown_depth)
           
@@ -465,6 +465,6 @@ contains
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
     end if
 
-  end subroutine fates_grazing
+  end subroutine FatesGrazing
 
 end module FatesLandUseChangeMod

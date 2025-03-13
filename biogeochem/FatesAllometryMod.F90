@@ -93,12 +93,12 @@ module FatesAllometryMod
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : pi_const
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDParamsMod      , only : nlevleaf,dinc_vai,dlower_vai
-  use EDParamsMod       , only : nclmax
   use DamageMainMod    , only : GetCrownReduction
 
   implicit none
@@ -110,8 +110,6 @@ module FatesAllometryMod
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
   public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: storage_fraction_of_target ! storage as fraction of leaf biomass
-  public :: tree_lai      ! Calculate tree-level LAI from actual leaf biomass
-  public :: tree_sai      ! Calculate tree-level SAI from tree-level LAI
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bbgw_allom    ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
@@ -127,7 +125,10 @@ module FatesAllometryMod
                                ! root profiles
   public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
   public :: VegAreaLayer
-  
+
+  public :: tree_lai_sai       ! LAI and SAI calculations must work together, thus they
+                               ! should never be called separately
+
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -412,6 +413,9 @@ contains
       case (4) ! 3par_pwr
          call h_allom(d,ipft,h,dhdd)
          call dh2bagw_3pwr(d,h,dhdd,p1,p2,p3,wood_density,c2b,bagw,dbagwdd)
+      case (5) ! 3par_pwr_grass
+         call h_allom(d,ipft,h,dhdd)
+         call dh2bagw_3pwr_grass(d,h,dhdd,p1,p2,p3,c2b,bagw,dbagwdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
          write(fates_log(),*) 'Aborting'
@@ -471,6 +475,9 @@ contains
       case(4) ! dh2blmax_3pwr
          call h_allom(d,ipft,h,dhdd)
          call dh2blmax_3pwr(d,h,dhdd,p1,p2,p3,slatop,dbh_maxh,c2b,blmax,dblmaxdd)
+      case (5) ! dh2blmax_3pwr_grass
+         call h_allom(d,ipft,h,dhdd)
+         call dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
               allom_lmode
@@ -530,7 +537,7 @@ contains
           call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, & 
                crowndamage, c_area, do_inverse)
           capped_allom = .false.
-       case(3)
+       case(3,5)
           dbh_eff = min(dbh,dbh_maxh)
           call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
                crowndamage, c_area, do_inverse)
@@ -670,7 +677,7 @@ contains
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
     integer, intent(in)  :: cl                        ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
+    real(r8), intent(in) :: canopy_lai(:)             ! total leaf area index of 
                                                       ! each canopy layer
     real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
                                                       ! top, ref 25C
@@ -803,7 +810,7 @@ contains
     real(r8), intent(in) :: c_area             ! crown area (m2)
     real(r8), intent(in) :: nplant             ! number of plants
     integer, intent(in)  :: cl                 ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
+    real(r8), intent(in) :: canopy_lai(:)      ! total leaf area index of 
                                                ! each canopy layer
     real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
     real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
@@ -822,43 +829,58 @@ contains
 
     tree_sai   =  elongf_stem * prt_params%allom_sai_scaler(pft) * target_lai
 
-    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
-
-       ! output warning message. use a separate warning index for each PFT that encounters this error.
-       warn_msg = 'Lai+sai for cohort maxed out the array size. lai, sai, pft, dbh: '//trim(N2S(treelai))// &
-            ', '//trim(N2S(tree_sai))//', '//trim(I2S(pft))//', '//trim(N2S(dbh))
-       call FatesWarn(warn_msg,index=100+pft)
-
-       ! old error message below.
-       ! call h_allom(dbh,pft,h)
-       ! write(fates_log(),*) 'lai: ',treelai
-       ! write(fates_log(),*) 'sai: ',tree_sai
-       ! write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       ! write(fates_log(),*) 'target_bleaf: ', target_bleaf
-       ! write(fates_log(),*) 'area: ', c_area
-       ! write(fates_log(),*) 'target_lai: ',target_lai
-       ! write(fates_log(),*) 'dinc_vai:',dinc_vai
-       ! write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
-       ! write(fates_log(),*) 'pft: ',pft
-       ! write(fates_log(),*) 'call id: ',call_id
-       ! write(fates_log(),*) 'n: ',nplant
-       ! write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
-       ! write(fates_log(),*) 'h: ',h
-       ! write(fates_log(),*) 'canopy_trim: ',canopy_trim
-       ! write(fates_log(),*) 'canopy layer: ',cl
-       ! write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
-       ! write(fates_log(),*) 'vcmax25top: ',vcmax25top
-       ! call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-
-
     return
   end function tree_sai
+
+  ! ============================================================================
+  
+  subroutine tree_lai_sai(leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top, &
+                          dbh, crowndamage, canopy_trim, elongf_stem, call_id, & 
+                          treelai, treesai)
+
+    ! This is the public wrapper for calling plant lai and sai
+    ! The purpose of this wrapper is to ensure that they are called together,
+    ! and in the correct order, and that the capping is applied after
+    ! the base calculations are performed.
+    
+    real(r8), intent(in) :: leaf_c                    ! plant leaf carbon [kg]
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(:)             ! total leaf area index of 
+                                                      ! each canopy layer
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+    real(r8), intent(in) :: dbh
+    integer, intent(in)  :: crowndamage
+    real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: elongf_stem        ! Elongation factor for stems.
+    integer,intent(in)   :: call_id            ! flag specifying where this is called from
+    ! from
+    
+    real(r8), intent(out) :: treelai         ! plant LAI [m2 leaf area/m2 crown area]
+    real(r8), intent(out) :: treesai         ! plant SAI [m2 stem area/m2 crown area]
+   
+    
+    treelai = tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
+    
+    treesai = tree_sai( pft, dbh, crowndamage, canopy_trim, elongf_stem, c_area, nplant, &
+                             cl, canopy_lai, treelai, vcmax25top, call_id )
+
+    ! Don't allow lai+sai to exceed the vertical discretization bounds
+    if( (treelai + treesai) > (sum(dinc_vai)) )then
+       treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft)) - nearzero
+       treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft) - nearzero
+    end if
+    
+    
+    return
+  end subroutine tree_lai_sai
+
   
 ! =====================================================================================
  
-  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
+  real(r8) function leafc_from_treelai( treelai, treesai, pft, c_area, nplant, cl, vcmax25top)
  
     ! -----------------------------------------------------------------------------------
     ! Calculates the amount of leaf carbon which is needed to generate a given treelai. 
@@ -867,6 +889,7 @@ contains
  
     ! !ARGUMENTS
     real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
+    real(r8), intent(in) :: treesai                    ! desired tree lai m2/m2
     integer, intent(in)  :: pft                       ! Plant Functional Type index
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
@@ -907,6 +930,11 @@ contains
       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
+    if( (treelai + treesai) > (sum(dinc_vai)) )then
+       write(fates_log(),*) 'SP tree lai cannot exceed sum of dinc_vai',treelai,treesai,sum(dinc_vai)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
     ! convert PFT-level canopy top and maximum SLA values and convert from m2/gC to m2/kgC
     slat = g_per_kg * prt_params%slatop(pft)
     sla_max = g_per_kg * prt_params%slamax(pft)
@@ -1038,6 +1066,27 @@ contains
           if(present(dbsapdd))then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
+       end if
+
+    case(2) ! this is a 'sapwood' function specifically for grass PFT that do not produce
+            ! dead woody biomass. So bsap = bagw. Might remove the bsap and bdead for grass
+            ! in the future as there is no need to distinguish the two for grass above- and belowground biomass
+
+       call SapwoodAreaGrass(d,sapw_area)
+       call bagw_allom(d,ipft,crowndamage,elongf_stem,bagw,dbagwdd)
+       call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
+       
+       bsap = bagw + bbgw
+
+       ! This is a grass-only functionnal type, no need to run crown-damage effects
+
+       bsap = elongf_stem * bsap
+       if (present(dbsapdd))then
+          dbsapdd = elongf_stem * (dbagwdd + dbbgwdd)
+       end if
+       
+       if(present(dbsapdd))then
+          dbsapdd = dbagwdd + dbbgwdd
        end if
 
     case DEFAULT
@@ -1232,7 +1281,7 @@ contains
             dbdeaddd = dbagwdd/agb_fraction
          end if
          
-      case(2,3,4)
+      case(2,3,4,5)
          
          bdead = bagw + bbgw - bsap
          if(present(dbagwdd) .and. present(dbbgwdd) .and. &
@@ -1390,6 +1439,45 @@ contains
     end associate
     return
   end subroutine bsap_ltarg_slatop
+
+
+
+  ! ============================================================================
+  ! Area of sap wood cross-section specifically for grass PFT
+  ! ============================================================================
+
+  subroutine SapwoodAreaGrass(d,sapw_area)
+
+     !---------------------------------------------------------------------------
+     ! This function calculates sapwood cross-sectional area specifically for grass
+     ! PFT using basal diameter (cm) of the entire plant as size reference,
+     ! assume sapwood area of the entire plant as the sum of the cross-sectional area
+     ! of each grass tiller
+     ! such that water transport through sapwood can be seen as a collective behavior
+     ! of all tillers
+     ! No reference. Might update this to more theoretical-based approach once there
+     ! is empirical evidence
+     !----------------
+     ! Input arguments
+     !----------------
+     ! d                -- basal diameter               [cm]
+
+     !----------------
+     ! Output variables
+     !----------------
+     ! sapw_area        -- sapwood cross-sectional area   [m2]
+
+     !---Arguments
+     real(r8), intent(in)              :: d             ! plant basal diameter               [    cm]
+     real(r8), intent(out)             :: sapw_area     ! sapwood cross-sectional area       [    m2]
+
+     ! Calculate sapwood cross-sectional area assuming sapwood geometry as a
+     ! cylinder and basal diameter is the diameter of the cylinder
+     sapw_area = (pi_const * ((d / 2.0_r8)**2.0_r8)) / cm2_per_m2
+
+     return
+
+  end subroutine SapwoodAreaGrass
 
   ! ============================================================================
   ! Specific storage relationships
@@ -1635,6 +1723,82 @@ contains
   end subroutine dh2blmax_3pwr
 
 
+
+  ! =========================================================================
+
+  subroutine dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
+    !------------------------------------------------------------------------
+    !
+    ! This function calculates the maximum leaf biomass using diameter (basal
+    ! diameter for grass) and plant height based on grass leaf allometry developed
+    ! in Gao et al. 2024
+    !
+    !-------------------
+    ! References
+    !-------------------
+    ! Gao X., Koven C., and Kueppers L. 2024. Allometric relationships and trade-offs
+    ! in 11 common Mediterranean-climate grasses. Ecological Applications.
+    ! https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2976
+
+    !------------------
+    ! Input arguments
+    !------------------
+    ! d          -- Basal diameter for grass or any herbaceous plants             [      cm]
+    ! h          -- Plant height                                                  [       m]
+    ! dhdd       -- Height derivative with dbh                                    [    m/cm]
+    ! p1         -- Parameter 1 (log-intercept)                                   [      --]
+    ! p2         -- Parameter 2 (log-slope associated with d)                     [      --]
+    ! p3         -- Parameter 3 (log-slope associated with h)                     [      --]
+    ! dbh_maxh   -- DBH at maximum height                                         [      cm]
+    ! c2b        -- Carbon to biomass multiplier ~ 2                              [  kg/kgC]
+    !
+    !-----------------
+    ! Output arguments
+    !-----------------
+    ! blmax      -- Leaf biomass                                                  [      kgC]
+    ! dblmaxdd   -- Leaf biomass derivative                                       [   kgC/cm]
+    !
+    !-----------------
+    ! Default parameters have been updated for three FATES grass PFTs according to Gao et al. 2024
+    !---------------------------------------------------------------------------------------------
+    
+    !-----Arguments
+    real(r8), intent(in)              :: d         ! plant diameter                   [    cm]
+    real(r8), intent(in)              :: h         ! plant height                     [     m]
+    real(r8), intent(in)              :: dhdd      ! height derivative                [  m/cm]
+    real(r8), intent(in)              :: p1        ! log-intercept parameter          [     -]
+    real(r8), intent(in)              :: p2        ! log-slope associated with d      [     -]
+    real(r8), intent(in)              :: p3        ! log-slope associated with h      [     -]
+    real(r8), intent(in)              :: c2b       ! carbon to biomass multiplier     [kg/kgC]
+    real(r8), intent(in)              :: dbh_maxh  ! diameter at maximum height       [    cm]
+    real(r8), intent(out)             :: blmax     ! leaf biomass                     [   kgC]
+    real(r8), intent(out), optional   :: dblmaxdd  ! leaf biomass derivative          [kgC/cm]
+    !----Local variables
+    real(r8)  :: duse
+
+
+    !----Cap diameter
+    duse = min(d, dbh_maxh)
+
+    !----Calculate leaf biomass
+    blmax = p1 * duse**p2 * h**p3 / c2b
+
+    !----Calculate leaf biomass derivative if needed
+
+    if (present(dblmaxdd))then
+       if(d .ge. dbh_maxh)then
+          dblmaxdd = 0._r8
+       else
+          dblmaxdd = blmax * (p2 / duse + p3 * dhdd / h)
+       end if
+    end if
+
+    return
+  end subroutine dh2blmax_3pwr_grass
+  
+ 
+          
+    
   ! =========================================================================
   ! Diameter to height (D2H) functions
   ! =========================================================================
@@ -2018,6 +2182,69 @@ contains
 
   ! ============================================================================
 
+
+  subroutine dh2bagw_3pwr_grass(d,h,dhdd,p1,p2,p3,c2b,bagw,dbagwdd)
+    !---------------------------------------------------------------------------
+    !
+    ! This function calculates aboveground biomass (excluding leaf biomass) using
+    ! basal diamerer (cm) and plant height (m) as size references, specifically
+    ! for grass or herbaceous plants (can be used for other PFTs if supported by data)
+    !
+    !----------------
+    ! Reference
+    !----------------
+    ! Gao X., Koven C., and Kueppers L. 2024. Allometric relationships and trade-offs in 11
+    ! common Mediterranean-climate grasses. Ecological Applications.
+    ! https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2976
+    !
+    !----------------
+    ! Input arguments
+    !----------------
+    ! d                    -- Basal diameter                      [    cm]
+    ! h                    -- Plant height                        [     m]
+    ! dhdd                 -- Height derivative with diameter     [  m/cm]
+    ! p1                   -- Log-intercept                       [     -]
+    ! p2                   -- Log-slope associated with d         [     -]
+    ! p3                   -- Log-slope associated with h         [     -]
+    ! c2b                  -- Carbon to biomass multiplier        [kg/kgC]
+    !
+    !----------------
+    ! Output variables
+    !----------------
+    ! bagw                 -- Aboveground biomass                 [   kgC]
+    ! dbagwdd              -- Aboveground biomass derivative      [kgC/cm]
+    !
+    !---------------------------------------------------------------------------
+
+
+    !----Arguments
+    real(r8), intent(in)              :: d               ! plant diameter                      [    cm]
+    real(r8), intent(in)              :: h               ! plant height                        [     m]
+    real(r8), intent(in)              :: dhdd            ! height derivative w/ diameter       [  m/cm]
+    real(r8), intent(in)              :: p1              ! log-intercept                       [     -]
+    real(r8), intent(in)              :: p2              ! log-slope associated with d         [     -]
+    real(r8), intent(in)              :: p3              ! log-slope associated with h         [     -]
+    real(r8), intent(in)              :: c2b             ! biomass to carbon multiplier        [kg/kgC]
+    real(r8), intent(out)             :: bagw            ! aboveground biomass excluding leaf  [   kgC]
+    real(r8), intent(out),optional    :: dbagwdd         ! aboveground biomass derivative      [kgC/cm]
+
+    !----Calculate aboveground biomass
+
+    bagw = p1 * (d**p2) * (h**p3) / c2b
+
+    !----Compute the aboveground biomass derivative with basal diameter if needed
+    if (present(dbagwdd)) then
+       dbagwdd = p2 * bagw / d + p3 * bagw * dhdd / h
+    end if
+
+    return
+  end subroutine dh2bagw_3pwr_grass
+  
+    
+
+  ! ============================================================================
+
+  
 
   subroutine d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
     
