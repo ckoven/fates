@@ -103,6 +103,8 @@ module EDPhysiologyMod
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : area_error_3
   use FatesConstantsMod     , only : years_per_day
+  use FatesConstantsMod    , only : ha_per_m2
+  use FatesConstantsMod    , only : days_per_sec
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
   use FatesAllometryMod  , only : bagw_allom
