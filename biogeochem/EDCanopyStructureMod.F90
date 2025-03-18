@@ -2267,12 +2267,14 @@ contains
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
-   if( currentCohort%nv .ne. minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai))) ) then
+   if( currentCohort%nv .ne. minloc(dlower_vai, DIM=1, MASK=(dlower_vai .ge. (currentCohort%treelai+currentCohort%treesai))) ) then
       write(fates_log(),*) 'We use two methods of finding maximum leaf layers, and they are not equivalent'
       write(fates_log(),*) 'count method:',currentCohort%nv
       write(fates_log(),*) 'minloc method:',minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai)))
       write(fates_log(),*) 'currentCohort%treelai', currentCohort%treelai
       write(fates_log(),*) 'currentCohort%treesai', currentCohort%treesai
+      write(fates_log(),*) 'dlower_vai', dlower_vai
+      
       call endrun(msg=errMsg(sourcefile, __LINE__))
    end if
    
