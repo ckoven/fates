@@ -3858,8 +3858,6 @@ contains
         !bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
         !bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
         !bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
-
-        
         
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
