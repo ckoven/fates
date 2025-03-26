@@ -370,9 +370,13 @@ contains
            scelb%B1*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
+
          ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+         ! if(shr_infnan_isnan(r_diff_dn)) then !RGK: this statement simply didn't work
+         ! Dont trigger an endrun, we flag an error with r_diff_dn,
+         ! which will be caught downstream and reported with more information
          if(r_diff_dn /= r_diff_dn) then
-         !if(shr_infnan_isnan(r_diff_dn)) then
+            r_diff_dn = -1.e6_r8
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
@@ -385,7 +389,7 @@ contains
             write(log_unit,*)this%band(ib)%Rdiff_atm
             write(log_unit,*)exp(-scelg%Kb*vai)
             write(log_unit,*)exp(scelb%a*vai)
-            !call endrun(msg=errMsg(sourcefile, __LINE__))
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end if
       

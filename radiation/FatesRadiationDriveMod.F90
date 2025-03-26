@@ -105,7 +105,6 @@ contains
 
           ifp = currentpatch%patchno
           
-          ! do not do albedo calculations for bare ground patch in SP mode
           if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Initialize output boundary conditions with trivial assumption
@@ -137,7 +136,7 @@ contains
                 
                 select case(hlm_radiation_model)
                 case(norman_solver)
-                   
+
                    call PatchNormanRadiation (currentPatch, &
                         bc_in(s)%coszen, &
                         bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
