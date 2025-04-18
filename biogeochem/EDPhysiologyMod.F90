@@ -669,6 +669,8 @@ contains
     integer, parameter :: nrhs = 1        ! Number of columns in matrix B and X
     integer, parameter :: workmax = 100   ! Maximum iterations to minimize work
 
+    real(r8), parameter :: minimum_trim = 0.1_r8  ! minimum trim value
+
     integer :: lda = m, ldb = n           ! Leading dimension of A and B, respectively
     integer :: lwork                      ! Dimension of work array
     integer :: info                       ! Procedure diagnostic ouput
@@ -885,11 +887,14 @@ contains
                 optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
 
                 ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                if (optimum_trim > minimum_trim .and. optimum_trim < 1.) then
                    currentCohort%canopy_trim = optimum_trim
 
                    trimmed = .true.
 
+                else if (optimum_trim <= minimum_trim) then
+                   currentCohort%canopy_trim = minimum_trim
+                   trimmed = .true.
                 endif
              endif
           endif
