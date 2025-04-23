@@ -836,7 +836,7 @@ contains
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
+                   if (currentCohort%canopy_trim > (EDPftvarcon_inst%trim_limit(ipft) + EDPftvarcon_inst%trim_inc(ipft))) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
