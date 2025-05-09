@@ -1856,7 +1856,7 @@ data:
 
  fates_trs_seedling_mort_par_timescale = 32 ;
 
- fates_vai_top_bin_width = 0.5 ;
+ fates_vai_top_bin_width = 1 ;
 
- fates_vai_width_increase_factor = 1.1 ;
+ fates_vai_width_increase_factor = 1 ;
 }
