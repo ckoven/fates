@@ -86,7 +86,7 @@ module EDParamsMod
                                               ! For large arrays at patch level we use dynamic allocation
 
                                                                       ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-   integer, parameter, public :: nlevleaf = 20                        ! number of leaf+stem layers in each canopy layer
+   integer, parameter, public :: nlevleaf = 13                        ! number of leaf+stem layers in each canopy layer
 
    real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8          ! VAI bin widths array
    real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8          ! numericaly (not vertically) lower edges of VAI bins
