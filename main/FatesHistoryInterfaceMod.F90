@@ -852,7 +852,6 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_hifrq_subsite
      procedure :: update_history_hifrq_subsite_ageclass
      procedure :: update_history_hifrq_landuse
-
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
 
