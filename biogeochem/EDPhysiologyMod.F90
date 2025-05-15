@@ -158,7 +158,7 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-  public :: ZeroBCOutFluxes
+  public :: ZeroBCOutCarbonFluxes
 
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
@@ -235,7 +235,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine ZeroBCOutFluxes (bc_out)
+  subroutine ZeroBCOutCarbonFluxes (bc_out)
 
     ! !ARGUMENTS
     type(bc_out_type), intent(inout)   :: bc_out
@@ -245,7 +245,7 @@ contains
     bc_out%gpp_site                = 0._r8
     bc_out%ar_site                 = 0._r8
 
-  end subroutine ZeroBCOutFluxes
+  end subroutine ZeroBCOutCarbonFluxes
 
   ! =====================================================================================
 
