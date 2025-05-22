@@ -363,6 +363,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fracarea_si_landuse
   integer :: ih_biomass_si_landuse
   integer :: ih_burnedarea_si_landuse
+  integer :: ih_grazing_si_landuse
   integer :: ih_gpp_si_landuse
   integer :: ih_npp_si_landuse
   integer :: ih_tveg_si_landuse
@@ -378,6 +379,7 @@ module FatesHistoryInterfaceMod
 
   ! land use by PFT variables
   integer :: ih_biomass_si_lupft
+  integer :: ih_npp_si_lupft
   integer :: ih_nocomp_patcharea_si_lupft
   
   integer :: ih_fire_disturbance_rate_si
@@ -3096,6 +3098,7 @@ contains
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     real(r8) :: a_sapw ! sapwood area [m^2]
     real(r8) :: c_sapw ! sapwood biomass [kgC]
+    real(r8) :: leaf_herbivory     ! mass of leaves eaten by herbivores [kg/yr]
 
     integer  :: i_dist, j_dist
 
@@ -3263,7 +3266,9 @@ contains
            hio_npp_si_landuse                 => this%hvars(ih_npp_si_landuse)%r82d, &
            hio_biomass_si_landuse            => this%hvars(ih_biomass_si_landuse)%r82d, &
            hio_biomass_si_lupft              => this%hvars(ih_biomass_si_lupft)%r82d, &
+           hio_npp_si_lupft              => this%hvars(ih_npp_si_lupft)%r82d, &
            hio_burnedarea_si_landuse         => this%hvars(ih_burnedarea_si_landuse)%r82d, &
+           hio_grazing_si_landuse         => this%hvars(ih_grazing_si_landuse)%r82d, &
            hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
            hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
            hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
@@ -3634,6 +3639,15 @@ contains
                          hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
                               + ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
                       end if
+
+                      lupft_index = get_landusepft_class_index(cpatch%land_use_label,ccohort%pft)
+                      hio_npp_si_lupft(io_si, lupft_index) = &
+                           hio_npp_si_lupft(io_si, lupft_index) &
+                              + ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
+
+                      leaf_herbivory   = ccohort%prt%GetHerbivory(leaf_organ, carbon12_element) * days_per_year 
+                      hio_grazing_si_landuse(io_si, cpatch%land_use_label) = hio_grazing_si_landuse(io_si, cpatch%land_use_label) &
+                           + leaf_herbivory * n_perm2 / days_per_year / sec_per_day
 
                       ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                       sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -7122,10 +7136,20 @@ contains
                avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
                ivar=ivar, initialize=initialize_variables, index=ih_biomass_si_lupft)
 
+          call this%set_history_var(vname='FATES_AGNPP_LUPF', units='kg m-2',      &
+               long='Vegetation Carbon by land use type and PFT', use_default='active',  &
+               avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_npp_si_lupft)
+
           call this%set_history_var(vname='FATES_BURNEDAREA_LU', units='s-1',      &
                long='burned area by land use type', use_default='active',  &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
                ivar=ivar, initialize=initialize_variables, index=ih_burnedarea_si_landuse)
+
+          call this%set_history_var(vname='FATES_GRAZING_LU', units='kg m-2 s-1',      &
+               long='grazing flux by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_grazing_si_landuse)
 
           call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
                long='land use transition matrix', use_default='active',  &
