@@ -1557,7 +1557,8 @@ data:
  fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.4, 0.49, 0.29, 0.5, 0.5 ;
 
- fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01, 0 ;
+ fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.001,
+    0.001 ;
 
  fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
@@ -1726,7 +1727,7 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 13 ;
 
- fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
+ fates_landuse_grazing_rate = 0, 0, 0.01, 0.02, 0 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
