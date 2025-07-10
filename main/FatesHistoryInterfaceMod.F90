@@ -658,6 +658,13 @@ module FatesHistoryInterfaceMod
   integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
   integer :: ih_seedling_pool_si_pft      ! carbon only
 
+  integer :: ih_tveg_si_pft
+  integer :: ih_tsa_si_pft
+  integer :: ih_sw_abs_si_pft
+  integer :: ih_lw_net_si_pft
+  integer :: ih_shflux_si_pft
+  integer :: ih_lhflux_si_pft
+
   ! Non-per-ageclass equivalents of per-ageclass variables
   integer :: ih_canopy_fracarea_si
   integer :: ih_ncl_si
@@ -853,6 +860,7 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_hifrq_subsite
      procedure :: update_history_hifrq_subsite_ageclass
      procedure :: update_history_hifrq_landuse
+     procedure :: update_history_hifrq_nocomp_pft
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
 
@@ -5045,6 +5053,9 @@ contains
        if (hlm_use_luh .eq. itrue) then
           call update_history_hifrq_landuse(this,nc,nsites,sites,bc_in,dt_tstep)
        end if
+       if (hlm_use_nocomp .eq. itrue) then
+          call update_history_hifrq_nocomp_pft(this,nc,nsites,sites,bc_in,dt_tstep)
+       end if
        if(hlm_hist_level_hifrq>1) then
           call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
@@ -5429,6 +5440,142 @@ contains
     end associate
     return
   end subroutine update_history_hifrq_landuse
+
+    ! ===============================================================================================
+
+  subroutine update_history_hifrq_nocomp_pft(this,nc,nsites,sites,bc_in,dt_tstep)
+
+    !
+    ! Arguments
+    class(fates_history_interface_type)                 :: this
+    integer                 , intent(in)            :: nc   ! clump index
+    integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    real(r8)                , intent(in)            :: dt_tstep
+
+    ! Locals
+    integer  :: s        ! The local site index
+    integer  :: io_si     ! The site index of the IO array
+
+    real(r8) :: nocomp_patcharea_vector(1:numpft)
+    real(r8) :: canopy_area_bypft(1:numpft)
+    integer  :: i_pft
+    logical  :: foundbaregroundpatch
+
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
+    real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
+
+    associate( hio_tveg_si_pft    => this%hvars(ih_tveg_si_pft)%r82d,&
+         hio_tsa_si_pft           => this%hvars(ih_tsa_si_pft)%r82d,&
+         hio_sw_abs_si_pft        => this%hvars(ih_sw_abs_si_pft)%r82d,&
+         hio_lw_net_si_pft        => this%hvars(ih_lw_net_si_pft)%r82d,&
+         hio_shflux_si_pft        => this%hvars(ih_shflux_si_pft)%r82d,&
+         hio_lhflux_si_pft        => this%hvars(ih_lhflux_si_pft)%r82d)
+
+      do_sites: do s = 1,nsites
+
+         io_si  = sites(s)%h_gid
+
+         dt_tstep_inv = 1.0_r8/dt_tstep
+         !
+         ! biophysical properties that are indexed by nocomp pft
+         nocomp_patcharea_vector(:) = 0._r8
+         canopy_area_bypft(:) = 0._r8
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if ( cpatch%land_use_label .ne. nocomp_bareground_land ) then
+               nocomp_patcharea_vector(cpatch%nocomp_pft_label) = nocomp_patcharea_vector(cpatch%nocomp_pft_label) + cpatch%area
+               canopy_area_bypft(cpatch%nocomp_pft_label) = canopy_area_bypft(cpatch%nocomp_pft_label) + &
+                    cpatch%total_canopy_area
+            endif
+            cpatch => cpatch%younger
+         end do
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (cpatch%total_canopy_area .gt. rsnbl_math_prec) then
+               ! for TVEG, since it is only defined on vegetated area of vegetated patches, normalize by the total vegetated area
+               hio_tveg_si_pft(io_si,cpatch%nocomp_pft_label) = hio_tveg_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%t_veg_pa(cpatch%patchno) * cpatch%total_canopy_area/canopy_area_bypft(cpatch%nocomp_pft_label)
+
+               ! for the rest of these, first weight by the vegetated area of each patch over the total patch area for each land use type
+               hio_tsa_si_pft(io_si,cpatch%nocomp_pft_label) = hio_tsa_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%t2m_pa(cpatch%patchno) * cpatch%total_canopy_area/nocomp_patcharea_vector(cpatch%nocomp_pft_label)
+
+               hio_sw_abs_si_pft(io_si,cpatch%nocomp_pft_label) = hio_sw_abs_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%swabs_pa(cpatch%patchno) * cpatch%total_canopy_area/nocomp_patcharea_vector(cpatch%nocomp_pft_label)
+
+               hio_lw_net_si_pft(io_si,cpatch%nocomp_pft_label) = hio_lw_net_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%netlw_pa(cpatch%patchno) * cpatch%total_canopy_area/nocomp_patcharea_vector(cpatch%nocomp_pft_label)
+
+               hio_shflux_si_pft(io_si,cpatch%nocomp_pft_label) = hio_shflux_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%shflux_pa(cpatch%patchno) * cpatch%total_canopy_area/nocomp_patcharea_vector(cpatch%nocomp_pft_label)
+
+               hio_lhflux_si_pft(io_si,cpatch%nocomp_pft_label) = hio_lhflux_si_pft(io_si,cpatch%nocomp_pft_label) + &
+                    bc_in(s)%lhflux_pa(cpatch%patchno) * cpatch%total_canopy_area/nocomp_patcharea_vector(cpatch%nocomp_pft_label)
+            endif
+            cpatch => cpatch%younger
+         end do
+
+         ! for all the nocomp-pft-indexed variables, excpet for TVEG, also add in the component for the unvegetated area of each nocomp pft
+         foundbaregroundpatch = .false.
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (cpatch%land_use_label .eq. nocomp_bareground_land .and. .not. foundbaregroundpatch) then
+               foundbaregroundpatch = .true.
+               do i_pft = 1, n_landuse_cats
+                  if ( nocomp_patcharea_vector(i_pft) .gt. rsnbl_math_prec ) then
+                     hio_tsa_si_pft(io_si,i_pft) = hio_tsa_si_pft(io_si,i_pft) + &
+                          bc_in(s)%t2m_pa(cpatch%patchno) * &
+                          (nocomp_patcharea_vector(i_pft) - canopy_area_bypft(i_pft)) / nocomp_patcharea_vector(i_pft)
+
+                     hio_sw_abs_si_pft(io_si,i_pft) = hio_sw_abs_si_pft(io_si,i_pft) + &
+                          bc_in(s)%swabs_pa(cpatch%patchno) * &
+                          (nocomp_patcharea_vector(i_pft) - canopy_area_bypft(i_pft)) / nocomp_patcharea_vector(i_pft)
+
+                     hio_lw_net_si_pft(io_si,i_pft) = hio_lw_net_si_pft(io_si,i_pft) + &
+                          bc_in(s)%netlw_pa(cpatch%patchno) * &
+                          (nocomp_patcharea_vector(i_pft) - canopy_area_bypft(i_pft)) / nocomp_patcharea_vector(i_pft)
+
+                     hio_shflux_si_pft(io_si,i_pft) = hio_shflux_si_pft(io_si,i_pft) + &
+                          bc_in(s)%shflux_pa(cpatch%patchno) * &
+                          (nocomp_patcharea_vector(i_pft) - canopy_area_bypft(i_pft)) / nocomp_patcharea_vector(i_pft)
+
+                     hio_lhflux_si_pft(io_si,i_pft) = hio_lhflux_si_pft(io_si,i_pft) + &
+                          bc_in(s)%lhflux_pa(cpatch%patchno) * &
+                          (nocomp_patcharea_vector(i_pft) - canopy_area_bypft(i_pft)) / nocomp_patcharea_vector(i_pft)
+                  end if
+               end do
+            end if
+            cpatch => cpatch%younger
+         end do
+
+         ! instead of leaving the values for unoccupied areas as zero, set as missing values
+         do i_pft = 1, n_landuse_cats
+
+            ! if a given land use type is not present, set the value as missing
+            if ( nocomp_patcharea_vector(i_pft) .le. rsnbl_math_prec ) then
+               hio_tsa_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+               hio_sw_abs_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+               hio_lw_net_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+               hio_shflux_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+               hio_lhflux_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+            end if
+
+            ! for tveg, ignore if there is no vegetation present on any patches of that nocomp pft
+            if ( canopy_area_bypft(i_pft) .le. rsnbl_math_prec ) then
+               hio_tveg_si_pft(io_si,i_pft) = hlm_hio_ignore_val
+            end if
+
+         end do
+
+      end do do_sites
+
+    end associate
+    return
+  end subroutine update_history_hifrq_nocomp_pft
 
     ! ===============================================================================================
 
@@ -8987,6 +9134,45 @@ contains
                use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_landuse)
+       endif
+
+       if (hlm_use_nocomp .eq. itrue) then
+          ! biophysics variables that are indexed by nocomp PFT
+          call this%set_history_var(vname='FATES_TVEG_PF', units='degrees Kelvin', &
+               long='fates instantaneous mean vegetation temperature by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_tveg_si_pft )
+
+          call this%set_history_var(vname='FATES_TSA_PF', units='degrees Kelvin', &
+               long='fates instantaneous mean near-surface (2m) air temperature by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_tsa_si_pft )
+
+          call this%set_history_var(vname='FATES_SWABS_PF', units='W m-2', &
+               long='fates absorbed shortwave radiation by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_sw_abs_si_pft )
+
+          call this%set_history_var(vname='FATES_NETLW_PF', units='W m-2', &
+               long='fates net longwave flux by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_lw_net_si_pft )
+
+          call this%set_history_var(vname='FATES_SHFLUX_PF', units='W m-2', &
+               long='fates sensible heat flux by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_shflux_si_pft )
+
+          call this%set_history_var(vname='FATES_LHFLUX_PF', units='W m-2', &
+               long='fates latent heat flux by nocomp PFT', &
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_pft )
        endif
 
        call this%set_history_var(vname='FATES_VIS_RAD_ERROR', units='-',          &
