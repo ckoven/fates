@@ -1066,8 +1066,8 @@ contains
 
                                      endif
 
-                                     currentSite%mass_balance(el)%burn_flux_to_atm = &
-                                          currentSite%mass_balance(el)%burn_flux_to_atm + &
+                                     currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) = &
+                                          currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) + &
                                           leaf_burn_frac * leaf_m * nc%n
 
 
@@ -1974,7 +1974,7 @@ contains
 
 
        if (debug) then
-          burn_flux0    = site_mass%burn_flux_to_atm
+          burn_flux0    = site_mass%burn_flux_to_atm(dist_type)
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
@@ -1995,7 +1995,7 @@ contains
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+          site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
 
           bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
@@ -2026,7 +2026,7 @@ contains
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
            
-           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+           site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
 
            bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
@@ -2059,7 +2059,7 @@ contains
        ! EDMainMod start triggering.
        ! --------------------------------------------------------------------------
        if (debug) then
-          burn_flux1    = site_mass%burn_flux_to_atm
+          burn_flux1    = site_mass%burn_flux_to_atm(dist_type)
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
@@ -2239,7 +2239,7 @@ contains
                                                donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
 
              bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
@@ -2303,7 +2303,7 @@ contains
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
-                      site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
                       bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
@@ -2710,7 +2710,8 @@ contains
                      donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                  site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
              bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
@@ -2772,7 +2773,8 @@ contains
                    burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
                    bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
@@ -2785,7 +2787,8 @@ contains
                    woodproduct_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
                    bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
