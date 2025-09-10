@@ -687,17 +687,16 @@ module FatesHistoryInterfaceMod
   integer :: ih_biomass_si_age
   integer :: ih_c_stomata_si_age
   integer :: ih_c_lblayer_si_age
-  integer :: ih_agesince_anthrodist_si
   integer :: ih_agesince_anthrodist_si_age
-  integer :: ih_primarylands_fracarea_si
-  integer :: ih_secondarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si_age
+  integer :: ih_secondary_agb_si_agesinceanthro
   integer :: ih_primarylands_fracarea_si_age
   integer :: ih_fracarea_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
   integer :: ih_fire_sum_fuel_si_age
 
+  
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
   integer :: ih_leaf_height_dist_si_height
@@ -3294,9 +3293,6 @@ contains
            hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
            hio_fracarea_si         => this%hvars(ih_fracarea_si)%r81d, &
            hio_canopy_fracarea_si  => this%hvars(ih_canopy_fracarea_si)%r81d, &
-           hio_agesince_anthrodist_si     => this%hvars(ih_agesince_anthrodist_si)%r81d, &
-           hio_primarylands_fracarea_si => this%hvars(ih_primarylands_fracarea_si)%r81d, &
-           hio_secondarylands_fracarea_si => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_npp_si_landuse                 => this%hvars(ih_npp_si_landuse)%r82d, &
            hio_biomass_si_landuse            => this%hvars(ih_biomass_si_landuse)%r82d, &
@@ -3334,6 +3330,7 @@ contains
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
              hio_scorch_height_si_pft           => this%hvars(ih_scorch_height_si_pft)%r82d, &
+             hio_secondary_agb_si_agesinceanthro  => this%hvars(ih_secondary_agb_si_agesinceanthro)%r82d, &
              hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
           model_day_int = nint(hlm_model_day)
@@ -3439,25 +3436,6 @@ contains
                         hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) + &
                         cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
                 end if
-
-                ! some diagnostics on secondary forest area and its age distribution
-                if ( cpatch%land_use_label .eq. secondaryland ) then
-
-                   hio_agesince_anthrodist_si(io_si) = &
-                        hio_agesince_anthrodist_si(io_si)  &
-                        + cpatch%area * AREA_INV
-
-                   hio_secondarylands_fracarea_si(io_si) = &
-                        hio_secondarylands_fracarea_si(io_si) &
-                        + cpatch%area * AREA_INV
-
-                else if ( cpatch%land_use_label .eq. primaryland ) then
-
-                    hio_primarylands_fracarea_si(io_si) = &
-                         hio_primarylands_fracarea_si(io_si) &
-                         + cpatch%area * AREA_INV
-
-                endif
 
                 do ft = 1,numpft
                    hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
@@ -3906,6 +3884,16 @@ contains
 
                         hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
                              total_m * ccohort%n * AREA_INV
+
+                        ! cdkcdk agb by patch age since anthropogenic disturbance
+                        if ( cpatch%land_use_label .eq. secondaryland ) then
+
+                           iscag_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
+
+                           hio_secondary_agb_si_agesinceanthro(io_si,iscag_anthrodist) = &
+                                hio_secondary_agb_si_agesinceanthro(io_si,iscag_anthrodist) &
+                                + total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
+                        endif
 
                         ! update size-class quantities
 
@@ -4873,6 +4861,8 @@ contains
              hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) = &
                   hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) &
                   + patch_area_div_site_area
+
+             
           else if ( cpatch%land_use_label .eq. primaryland) then
              hio_primarylands_fracarea_si_age(io_si,cpatch%age_class) = &
                   hio_primarylands_fracarea_si_age(io_si,cpatch%age_class) & 
@@ -7619,20 +7609,6 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si_age)
 
-          call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRO',          &
-               units='m2 m-2',                                                       &
-               long='secondary forest patch area since anthropgenic disturbance', &
-               use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_agesince_anthrodist_si)
-
-          call this%set_history_var(vname='FATES_SECONDARY_AREA',                &
-               units='m2 m-2',                                                       &
-               long='secondary forest patch area since any kind of disturbance', &
-               use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_secondarylands_fracarea_si)
-
           call this%set_history_var(vname='FATES_SECONDARY_AREA_AP',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since any kind of disturbance', &
@@ -7640,12 +7616,12 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_fracarea_si_age)
 
-          call this%set_history_var(vname='FATES_PRIMARY_AREA',                  &
-               units='m2 m-2',                                                   &
-               long='primary forest patch area since any kind of disturbance',   &
-               use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_primarylands_fracarea_si)
+          call this%set_history_var(vname='FATES_SECONDARY_AGB_ANTHROAGE_AP',                &
+               units='kg m-2',                                                       &
+               long='secondary forest patch agb as resolved by age since anthropogenic disturbance', &
+               use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+               index=ih_secondary_agb_si_agesinceanthro)
 
           call this%set_history_var(vname='FATES_PRIMARY_AREA_AP',                &
                units='m2 m-2',                                                       &
