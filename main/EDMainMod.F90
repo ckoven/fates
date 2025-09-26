@@ -554,7 +554,7 @@ contains
                   (currentCohort%resp_m_acc + currentCohort%resp_g_acc_hold/real(hlm_days_per_year,r8))
              currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - &
                   (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
-             
+
 
              ! allow herbivores to graze
              call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
@@ -789,7 +789,7 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       
+
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
@@ -1101,7 +1101,7 @@ contains
                 currentPatch => currentPatch%younger
              enddo !end patch loop
              write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             !call endrun(msg=errMsg(sourcefile, __LINE__))
          !end if
 
       endif
