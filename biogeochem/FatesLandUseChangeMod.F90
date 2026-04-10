@@ -180,9 +180,7 @@ contains
 
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
     
-    ! default value of ruleset 4 above means that plants are not cleared during land use change
-    ! transitions to rangeland, whereas plants are cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020)
+    integer, parameter    :: ruleset = 1
     ! https://doi.org/10.5194/gmd-13-3203-2020
 
     ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred
