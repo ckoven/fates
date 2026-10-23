@@ -24,7 +24,7 @@
       "dims": ["fates_history_age_bins"],
       "long_name": "Lower edges for age class bins used in age-resolved patch history output",
       "units": "yr",
-      "data": [0.0, 5.0, 10.0, 15.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 220.0, 240.0, 260.0, 280.0, 300.0]
+      "data": [0.0, 5.0, 10.0, 15.0, 20.0, 40.0, 60.0, 80.0, 100.0, 150.0, 200.0, 250.0, 300.0]
     },
     "fates_history_coageclass_bin_edges":{
       "dtype": "float",
@@ -45,7 +45,7 @@
       "dims": ["fates_history_size_bins"],
       "long_name": "Lower edges for DBH size class bins used in size-resolved cohort history output",
       "units": "cm",
-      "data": [0.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0]
+	"data": [0.0, 1.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 115.0, 130.0, 150.0, 175.0, 200.0, 225.0, 300.0]
     },
     "fates_history_damage_bin_edges":{
       "dtype": "float",
@@ -1718,7 +1718,7 @@
       "dims": ["fates_landuseclass"],
       "long_name": "maximum number of patches per site on each land use type",
       "units": "count",
-      "data": [9, 4, 2, 2, 1]
+      "data": [9, 5, 2, 2, 1]
     },
     "fates_canopy_closure_thresh":{
       "dtype": "float",
@@ -1984,7 +1984,7 @@
       "dims": ["scalar"],
       "long_name": "Integer code that options how logging events are structured",
       "units": "unitless",
-      "data": [-30]
+      "data": [3]
     },
     "fates_landuse_logging_export_frac":{
       "dtype": "float",
