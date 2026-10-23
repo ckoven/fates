@@ -4,11 +4,11 @@
   },
   "dimensions":{
     "fates_NCWD": 4,
-    "fates_history_age_bins": 19,
+    "fates_history_age_bins": 13,
     "fates_history_coage_bins": 2,
     "fates_history_damage_bins": 2,
     "fates_history_height_bins": 6,
-    "fates_history_size_bins": 13,
+    "fates_history_size_bins": 21,
     "fates_hlm_pftno": 14,
     "fates_hydr_organs": 4,
     "fates_landuseclass": 5,
